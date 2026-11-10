@@ -1,5 +1,7 @@
 import React from 'react';
 import Link from 'next/link';
+import Navbar from '@/components/Navbar';
+import Footer from '@/components/Footer';
 import { 
   GraduationCap, 
   CreditCard, 
@@ -9,219 +11,229 @@ import {
   Bell, 
   ArrowRight,
   BookOpen,
-  School,
-  Database
+  AlertCircle,
+  PhoneCall,
+  CheckCircle2,
+  Calendar,
+  Sparkles
 } from 'lucide-react';
 
 export default function Home() {
   return (
-    <div className="min-h-screen flex flex-col justify-between">
-      {/* Top Banner */}
-      <div className="bg-[#0f2744] text-white py-2 px-4 text-xs sm:text-sm font-medium border-b border-blue-900">
-        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row justify-between items-center gap-2">
-          <span>Affiliated with Babasaheb Bhimrao Ambedkar Bihar University (BRABU), Muzaffarpur</span>
-          <div className="flex items-center gap-3">
-            <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 text-xs">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
-              Hostinger + MySQL Ready
-            </span>
-            <span>Sitamarhi, Bihar – 843302</span>
-          </div>
-        </div>
-      </div>
+    <div className="min-h-screen flex flex-col bg-slate-50">
+      <Navbar />
 
-      {/* Main Header */}
-      <header className="bg-white border-b border-slate-200 shadow-sm sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex flex-col md:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-4 text-center md:text-left">
-            <div className="w-14 h-14 rounded-xl bg-[#0f2744] text-white flex items-center justify-center shadow-md">
-              <School className="w-8 h-8 text-[#d4af37]" />
-            </div>
-            <div>
-              <h1 className="text-xl sm:text-2xl font-bold text-[#0f2744] tracking-tight">
-                M.K.R. Dr. G.R.D. College
-              </h1>
-              <p className="text-xs sm:text-sm text-slate-600 font-medium">
-                Matashri Kaushalya Ramdev Dr. Ganesh Ray Degree College, Punaura Dham
-              </p>
-            </div>
-          </div>
-          
-          <div className="flex items-center gap-3">
-            <Link
-              href="#notices"
-              className="px-4 py-2 text-sm font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition"
-            >
-              Notices & Circulars
-            </Link>
-            <Link
-              href="#portals"
-              className="px-5 py-2 text-sm font-semibold text-white bg-[#0f2744] hover:bg-[#1a3d66] rounded-lg shadow-sm transition"
-            >
-              Portal Login
-            </Link>
-          </div>
-        </div>
-      </header>
-
-      {/* Hero Section */}
       <main className="flex-1">
-        <section className="bg-gradient-to-b from-slate-100 to-white py-12 sm:py-16 border-b border-slate-200">
+        {/* Hero Section */}
+        <section className="bg-gradient-to-b from-[#0f2744]/5 via-white to-slate-50 py-12 sm:py-16 border-b border-slate-200">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="text-center max-w-3xl mx-auto">
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-100 text-[#0f2744] text-xs font-semibold mb-4">
-                <BookOpen className="w-3.5 h-3.5" /> 4-Year CBCS Undergraduate Curriculum Portal
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-100 text-[#0f2744] text-xs font-bold mb-4 shadow-sm">
+                <Sparkles className="w-3.5 h-3.5 text-[#0f2744]" /> 
+                Institutional ERP & Academic Management Portal
               </div>
-              <h2 className="text-3xl sm:text-4xl md:text-5xl font-extrabold text-slate-900 tracking-tight leading-tight">
-                Enterprise Academic & Resource Planning System
-              </h2>
-              <p className="mt-4 text-base sm:text-lg text-slate-600">
-                Official institutional gateway for Admissions, Major/Minor CBCS Subject Selections, Fee Receipts, Examinations, and Academic Governance.
+              <h1 className="text-3xl sm:text-4xl md:text-5xl font-black text-slate-900 tracking-tight leading-tight">
+                Matashri Kaushalya Ramdev <br />
+                <span className="text-[#0f2744]">Dr. Ganesh Ray Degree College</span>
+              </h1>
+              <p className="mt-3 text-sm sm:text-base font-semibold text-slate-700">
+                Punaura Dham, Sitamarhi, Bihar (Affiliated with B.R.A. Bihar University, Muzaffarpur)
               </p>
+              <p className="mt-4 text-xs sm:text-sm text-slate-600 max-w-2xl mx-auto">
+                Official unified portal for Online Admissions, Choice-Based Credit System (CBCS) Subject Selection, Automated Semester Fee Promotion, and Student Grievance Redressal.
+              </p>
+
+              {/* Action Buttons */}
+              <div className="mt-8 flex flex-wrap items-center justify-center gap-4">
+                <Link
+                  href="/admission"
+                  className="px-6 py-3 text-sm font-bold text-white bg-[#0f2744] hover:bg-[#1b4374] rounded-xl shadow-md transition flex items-center gap-2"
+                >
+                  <GraduationCap className="w-4 h-4 text-[#d4af37]" />
+                  Online Admission Form
+                </Link>
+                <Link
+                  href="/complaint"
+                  className="px-6 py-3 text-sm font-bold text-slate-700 bg-white hover:bg-slate-100 border border-slate-300 rounded-xl shadow-sm transition flex items-center gap-2"
+                >
+                  <AlertCircle className="w-4 h-4 text-amber-600" />
+                  Grievance & Complain
+                </Link>
+                <Link
+                  href="/contact"
+                  className="px-6 py-3 text-sm font-bold text-slate-700 bg-white hover:bg-slate-100 border border-slate-300 rounded-xl shadow-sm transition flex items-center gap-2"
+                >
+                  <PhoneCall className="w-4 h-4 text-blue-600" />
+                  Contact Us
+                </Link>
+              </div>
             </div>
 
-            {/* Quick Status / Live Notice ticker */}
-            <div id="notices" className="mt-10 bg-white rounded-xl p-4 shadow-sm border border-slate-200 flex items-center gap-4">
+            {/* Live Notice Ticker */}
+            <div className="mt-12 bg-white rounded-xl p-4 shadow-sm border border-slate-200 flex flex-col sm:flex-row items-start sm:items-center gap-3">
               <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-rose-700 bg-rose-50 px-3 py-1.5 rounded-lg border border-rose-200 shrink-0">
                 <Bell className="w-3.5 h-3.5" /> Latest Notice
               </div>
-              <p className="text-xs sm:text-sm text-slate-700 truncate">
-                UG Semester 1 (Session 2026–2030) Major, Minor & Multidisciplinary (MDC) subject verification portal is now active.
+              <p className="text-xs sm:text-sm text-slate-700 font-medium">
+                UG Semester 1 (Batch 2026–2030) Admission & CBCS Major (MJC), Minor (MIC), Multidisciplinary (MDC) subject verification is currently active.
               </p>
             </div>
           </div>
         </section>
 
-        {/* Portal Entry Modules Grid */}
-        <section id="portals" className="py-14 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        {/* Primary 4 Modules Grid */}
+        <section className="py-14 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="mb-10 text-center">
-            <h3 className="text-2xl font-bold text-slate-900">Choose Your Access Portal</h3>
-            <p className="text-slate-600 text-sm mt-1">Select the appropriate gateway to access academic and administrative services.</p>
+            <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900">
+              Core College ERP Modules
+            </h2>
+            <p className="text-slate-600 text-sm mt-1">
+              Select any of the primary gateways below to interact with institutional services.
+            </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {/* Card 1: Online Admission */}
-            <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm hover:shadow-md transition flex flex-col justify-between group">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {/* Module 1: Online Admission Form */}
+            <Link
+              href="/admission"
+              className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm hover:shadow-md hover:border-[#0f2744]/40 transition flex flex-col justify-between group"
+            >
               <div>
                 <div className="w-12 h-12 rounded-xl bg-blue-50 text-blue-700 flex items-center justify-center mb-5 group-hover:scale-105 transition-transform">
                   <GraduationCap className="w-6 h-6" />
                 </div>
-                <h4 className="text-lg font-bold text-slate-900">CBCS Admissions</h4>
-                <p className="text-xs text-slate-500 font-medium mt-0.5">B.A. / B.Com. (Hons)</p>
-                <p className="text-slate-600 text-sm mt-3 leading-relaxed">
-                  Apply for undergraduate admissions, register choice-based credits (MJC, MIC, MDC, AEC, SEC, VAC), and check verification status.
-                </p>
-              </div>
-              <div className="mt-6 pt-4 border-t border-slate-100 flex items-center justify-between">
-                <span className="text-xs font-semibold text-blue-700">Open Admission Portal</span>
-                <ArrowRight className="w-4 h-4 text-blue-700 group-hover:translate-x-1 transition-transform" />
-              </div>
-            </div>
-
-            {/* Card 2: Fee Payment */}
-            <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm hover:shadow-md transition flex flex-col justify-between group">
-              <div>
-                <div className="w-12 h-12 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center mb-5 group-hover:scale-105 transition-transform">
-                  <CreditCard className="w-6 h-6" />
+                <div className="inline-block px-2 py-0.5 rounded text-[11px] font-bold bg-blue-100 text-blue-800 mb-2">
+                  Session 2026–2030
                 </div>
-                <h4 className="text-lg font-bold text-slate-900">Fees & Receipts</h4>
-                <p className="text-xs text-slate-500 font-medium mt-0.5">Admission, Semester & Exam Dues</p>
-                <p className="text-slate-600 text-sm mt-3 leading-relaxed">
-                  Pay college and university dues online via UPI/Gateway, verify bank challans, and download printable fee clearance receipts.
+                <h3 className="text-lg font-bold text-slate-900 group-hover:text-[#0f2744] transition-colors">
+                  Online Admission Form
+                </h3>
+                <p className="text-slate-600 text-xs sm:text-sm mt-2 leading-relaxed">
+                  Apply for Undergraduate programs (B.A., B.Com. Honours). Fill in personal details, qualifications, and choose BRABU CBCS subjects.
                 </p>
               </div>
-              <div className="mt-6 pt-4 border-t border-slate-100 flex items-center justify-between">
-                <span className="text-xs font-semibold text-emerald-700">Pay or Download Receipt</span>
-                <ArrowRight className="w-4 h-4 text-emerald-700 group-hover:translate-x-1 transition-transform" />
-              </div>
-            </div>
-
-            {/* Card 3: Student Portal */}
-            <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm hover:shadow-md transition flex flex-col justify-between group">
-              <div>
-                <div className="w-12 h-12 rounded-xl bg-purple-50 text-purple-700 flex items-center justify-center mb-5 group-hover:scale-105 transition-transform">
-                  <UserCheck className="w-6 h-6" />
-                </div>
-                <h4 className="text-lg font-bold text-slate-900">Student Dashboard</h4>
-                <p className="text-xs text-slate-500 font-medium mt-0.5">Roll No & BRABU Reg No</p>
-                <p className="text-slate-600 text-sm mt-3 leading-relaxed">
-                  Access student profile, enrolled subject lists, semester admit cards, and internal assessment progress.
-                </p>
-              </div>
-              <div className="mt-6 pt-4 border-t border-slate-100 flex items-center justify-between">
-                <span className="text-xs font-semibold text-purple-700">Student Login</span>
-                <ArrowRight className="w-4 h-4 text-purple-700 group-hover:translate-x-1 transition-transform" />
-              </div>
-            </div>
-
-            {/* Card 4: Staff & Faculty */}
-            <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm hover:shadow-md transition flex flex-col justify-between group">
-              <div>
-                <div className="w-12 h-12 rounded-xl bg-amber-50 text-amber-700 flex items-center justify-center mb-5 group-hover:scale-105 transition-transform">
-                  <FileText className="w-6 h-6" />
-                </div>
-                <h4 className="text-lg font-bold text-slate-900">Faculty & Staff</h4>
-                <p className="text-xs text-slate-500 font-medium mt-0.5">Attendance & Marks Entry</p>
-                <p className="text-slate-600 text-sm mt-3 leading-relaxed">
-                  Department faculty portal for entering continuous internal assessment (CIA) marks, managing lecture rolls, and curriculum coverage.
-                </p>
-              </div>
-              <div className="mt-6 pt-4 border-t border-slate-100 flex items-center justify-between">
-                <span className="text-xs font-semibold text-amber-700">Faculty Access</span>
-                <ArrowRight className="w-4 h-4 text-amber-700 group-hover:translate-x-1 transition-transform" />
-              </div>
-            </div>
-
-            {/* Card 5: Administration & Principal */}
-            <Link 
-              href="/admin/students"
-              className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm hover:shadow-md transition flex flex-col justify-between group block"
-            >
-              <div>
-                <div className="w-12 h-12 rounded-xl bg-slate-100 text-slate-800 flex items-center justify-center mb-5 group-hover:scale-105 transition-transform">
-                  <ShieldCheck className="w-6 h-6" />
-                </div>
-                <h4 className="text-lg font-bold text-slate-900">Admin Console</h4>
-                <p className="text-xs text-slate-500 font-medium mt-0.5">Principal, Accounts & Office</p>
-                <p className="text-slate-600 text-sm mt-3 leading-relaxed">
-                  Comprehensive institutional administration with audit logs, verification workflows, financial ledgers, and BRABU reporting.
-                </p>
-              </div>
-              <div className="mt-6 pt-4 border-t border-slate-100 flex items-center justify-between">
-                <span className="text-xs font-semibold text-slate-800">Admin & Auto-Promotion Dashboard</span>
-                <ArrowRight className="w-4 h-4 text-slate-800 group-hover:translate-x-1 transition-transform" />
+              <div className="mt-6 pt-4 border-t border-slate-100 flex items-center justify-between text-xs font-bold text-[#0f2744]">
+                <span>Open Application</span>
+                <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
               </div>
             </Link>
 
-            {/* Card 6: Database & Hostinger Diagnostics */}
-            <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm hover:shadow-md transition flex flex-col justify-between group">
+            {/* Module 2: Grievance & Complain */}
+            <Link
+              href="/complaint"
+              className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm hover:shadow-md hover:border-amber-500/40 transition flex flex-col justify-between group"
+            >
               <div>
-                <div className="w-12 h-12 rounded-xl bg-sky-50 text-sky-700 flex items-center justify-center mb-5 group-hover:scale-105 transition-transform">
-                  <Database className="w-6 h-6" />
+                <div className="w-12 h-12 rounded-xl bg-amber-50 text-amber-700 flex items-center justify-center mb-5 group-hover:scale-105 transition-transform">
+                  <AlertCircle className="w-6 h-6" />
                 </div>
-                <h4 className="text-lg font-bold text-slate-900">System Architecture</h4>
-                <p className="text-xs text-slate-500 font-medium mt-0.5">Hostinger + MySQL Connection</p>
-                <p className="text-slate-600 text-sm mt-3 leading-relaxed">
-                  Prisma ORM schema initialized with pooled MySQL connections, ACID transactions, and Next.js standalone containerization.
+                <div className="inline-block px-2 py-0.5 rounded text-[11px] font-bold bg-amber-100 text-amber-800 mb-2">
+                  Redressal Cell
+                </div>
+                <h3 className="text-lg font-bold text-slate-900 group-hover:text-amber-700 transition-colors">
+                  Complain / Grievance
+                </h3>
+                <p className="text-slate-600 text-xs sm:text-sm mt-2 leading-relaxed">
+                  Submit grievances regarding Academic, Examination, Fees, or Campus facilities. Get an instant tracking ticket and monitor resolution.
                 </p>
               </div>
-              <div className="mt-6 pt-4 border-t border-slate-100 flex items-center justify-between">
-                <span className="text-xs font-semibold text-sky-700">Database Ready</span>
-                <ArrowRight className="w-4 h-4 text-sky-700 group-hover:translate-x-1 transition-transform" />
+              <div className="mt-6 pt-4 border-t border-slate-100 flex items-center justify-between text-xs font-bold text-amber-700">
+                <span>File Grievance</span>
+                <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+              </div>
+            </Link>
+
+            {/* Module 3: Contact Us */}
+            <Link
+              href="/contact"
+              className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm hover:shadow-md hover:border-emerald-500/40 transition flex flex-col justify-between group"
+            >
+              <div>
+                <div className="w-12 h-12 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center mb-5 group-hover:scale-105 transition-transform">
+                  <PhoneCall className="w-6 h-6" />
+                </div>
+                <div className="inline-block px-2 py-0.5 rounded text-[11px] font-bold bg-emerald-100 text-emerald-800 mb-2">
+                  Campus Helpdesk
+                </div>
+                <h3 className="text-lg font-bold text-slate-900 group-hover:text-emerald-700 transition-colors">
+                  Contact Us
+                </h3>
+                <p className="text-slate-600 text-xs sm:text-sm mt-2 leading-relaxed">
+                  Principal office, admission cell, and account counter contact numbers, official emails, campus map, and working hours in Sitamarhi.
+                </p>
+              </div>
+              <div className="mt-6 pt-4 border-t border-slate-100 flex items-center justify-between text-xs font-bold text-emerald-700">
+                <span>View Contact Details</span>
+                <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+              </div>
+            </Link>
+
+            {/* Module 4: Admin & Auto-Promotion Engine */}
+            <Link
+              href="/admin/students"
+              className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm hover:shadow-md hover:border-purple-500/40 transition flex flex-col justify-between group"
+            >
+              <div>
+                <div className="w-12 h-12 rounded-xl bg-purple-50 text-purple-700 flex items-center justify-center mb-5 group-hover:scale-105 transition-transform">
+                  <ShieldCheck className="w-6 h-6" />
+                </div>
+                <div className="inline-block px-2 py-0.5 rounded text-[11px] font-bold bg-purple-100 text-purple-800 mb-2">
+                  Staff & Admin
+                </div>
+                <h3 className="text-lg font-bold text-slate-900 group-hover:text-purple-700 transition-colors">
+                  ERP Administration
+                </h3>
+                <p className="text-slate-600 text-xs sm:text-sm mt-2 leading-relaxed">
+                  Access the high-concurrency directory (5,000+ students), audit logs, fee reconciliations, and the payment-triggered auto-promotion engine.
+                </p>
+              </div>
+              <div className="mt-6 pt-4 border-t border-slate-100 flex items-center justify-between text-xs font-bold text-purple-700">
+                <span>Open Dashboard</span>
+                <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+              </div>
+            </Link>
+          </div>
+        </section>
+
+        {/* Feature Highlights: Enterprise Reliability */}
+        <section className="bg-white py-12 border-t border-slate-200">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="flex items-start gap-4 p-4 rounded-xl bg-slate-50 border border-slate-100">
+                <CheckCircle2 className="w-6 h-6 text-emerald-600 shrink-0 mt-1" />
+                <div>
+                  <h4 className="font-bold text-slate-900 text-sm">Hostinger + MySQL Optimized</h4>
+                  <p className="text-xs text-slate-600 mt-1">
+                    Configured for high concurrency with connection pooling and standalone Node.js build footprint.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-start gap-4 p-4 rounded-xl bg-slate-50 border border-slate-100">
+                <CreditCard className="w-6 h-6 text-blue-600 shrink-0 mt-1" />
+                <div>
+                  <h4 className="font-bold text-slate-900 text-sm">Automated Semester Promotion</h4>
+                  <p className="text-xs text-slate-600 mt-1">
+                    Atomic transaction automatically clears fees, generates unique receipts, and promotes students to the next semester.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-start gap-4 p-4 rounded-xl bg-slate-50 border border-slate-100">
+                <BookOpen className="w-6 h-6 text-purple-600 shrink-0 mt-1" />
+                <div>
+                  <h4 className="font-bold text-slate-900 text-sm">4-Year BRABU CBCS Curriculum</h4>
+                  <p className="text-xs text-slate-600 mt-1">
+                    Strict tracking for Major (MJC), Minor (MIC), Multidisciplinary (MDC), AEC, SEC, and VAC courses.
+                  </p>
+                </div>
               </div>
             </div>
           </div>
         </section>
       </main>
 
-      {/* Footer */}
-      <footer className="bg-white border-t border-slate-200 py-8 text-center text-xs text-slate-500">
-        <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row justify-between items-center gap-3">
-          <p>© {new Date().getFullYear()} Matashri Kaushalya Ramdev Dr. Ganesh Ray Degree College (M.K.R. Dr. G.R.D. College). All rights reserved.</p>
-          <p className="font-medium text-slate-700">Sitamarhi, Bihar | Affiliated with B.R.A. Bihar University</p>
-        </div>
-      </footer>
+      <Footer />
     </div>
   );
 }
-
