@@ -48,41 +48,28 @@ export default function LoginPage() {
       label: 'Super Admin',
       fullLabel: 'Super Admin (Principal)',
       placeholder: 'mkrcollege@gmail.com',
-      defaultUser: 'mkrcollege@gmail.com',
       destination: '/admin/principal',
     },
     FACULTY: {
       label: 'Faculty',
       fullLabel: 'Faculty Admin',
-      placeholder: 'Mobile No. / Email / Staff Code',
-      defaultUser: 'FAC-HIST-001',
+      placeholder: 'Faculty ID / Registered Email / Mobile',
       destination: '/faculty',
     },
     STUDENT: {
       label: 'Student',
       fullLabel: 'Student / Parent',
       placeholder: 'College Roll No. / Application No. / Mobile',
-      defaultUser: '26/BA/0042',
       destination: '/student',
     },
   };
 
   const handleRoleChange = (newRole: UserRole) => {
     setRole(newRole);
+    setUsername('');
+    setPassword('');
     setErrorMessage('');
     setSuccessMessage('');
-  };
-
-  const handleQuickFill = (targetRole: UserRole) => {
-    setRole(targetRole);
-    setUsername(roleConfig[targetRole].defaultUser);
-    if (targetRole === 'SUPER_ADMIN') {
-      setPassword('Mkr@arvind98');
-    } else {
-      setPassword('College@2026');
-    }
-    setErrorMessage('');
-    setSuccessMessage(`Auto-filled credentials for ${roleConfig[targetRole].fullLabel}`);
   };
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -105,29 +92,23 @@ export default function LoginPage() {
       const response = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ role, username, password }),
+        body: JSON.stringify({ role, username: username.trim(), password }),
       });
 
       const data = await response.json();
 
-      if (!response.ok && !data.success) {
-        setSuccessMessage(`Redirecting to ${roleConfig[role].fullLabel} Dashboard...`);
-        setTimeout(() => {
-          router.push(roleConfig[role].destination);
-        }, 500);
+      if (!response.ok || !data.success) {
+        setErrorMessage(data.error || 'Invalid login credentials. Please check your credentials and try again.');
+        setIsLoading(false);
         return;
       }
 
-      setSuccessMessage(`Welcome! Redirecting...`);
+      setSuccessMessage(`Welcome ${data.user?.name || ''}! Redirecting...`);
       setTimeout(() => {
-        router.push(roleConfig[role].destination);
-      }, 400);
+        router.push(data.redirectUrl || roleConfig[role].destination);
+      }, 500);
     } catch {
-      setSuccessMessage(`Redirecting to ${roleConfig[role].fullLabel}...`);
-      setTimeout(() => {
-        router.push(roleConfig[role].destination);
-      }, 400);
-    } finally {
+      setErrorMessage('Unable to connect to authentication server. Please try again.');
       setIsLoading(false);
     }
   };
@@ -310,36 +291,6 @@ export default function LoginPage() {
               </button>
             </div>
           </form>
-
-          {/* Quick Demo Logins (Subtle inline test links) */}
-          <div className="mt-5 pt-3 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500">
-            <span className="font-medium text-slate-400">Quick Test:</span>
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => handleQuickFill('SUPER_ADMIN')}
-                className="text-[#800000] hover:underline font-semibold"
-              >
-                Principal
-              </button>
-              <span>•</span>
-              <button
-                type="button"
-                onClick={() => handleQuickFill('FACULTY')}
-                className="text-[#002B5C] hover:underline font-semibold"
-              >
-                Faculty
-              </button>
-              <span>•</span>
-              <button
-                type="button"
-                onClick={() => handleQuickFill('STUDENT')}
-                className="text-emerald-700 hover:underline font-semibold"
-              >
-                Student
-              </button>
-            </div>
-          </div>
 
         </div>
       </div>

@@ -98,21 +98,13 @@ export default function AdminStudentsPage() {
           )
         );
       } else {
-        // Fallback for visual demonstration if database connection isn't configured in local env yet
         setPromotionNotice(
-          `Demo Engine Triggered: ${student.fullName} auto-promoted to Semester ${targetSemester} with Receipt #MKR-2026-S${targetSemester}-${Math.floor(100000 + Math.random() * 900000)} (Database URL required for live MySQL writes).`
-        );
-        setStudents((prev) =>
-          prev.map((s) =>
-            s.id === student.id
-              ? { ...s, currentSemester: targetSemester, status: 'ADMITTED' }
-              : s
-          )
+          `Promotion error: ${data.error || 'Unable to promote student. Please verify database connection.'}`
         );
       }
-    } catch {
+    } catch (err: any) {
       setPromotionNotice(
-        `Demo Engine Simulated: Auto-promotion logic executed for ${student.fullName}.`
+        `Error: Failed to process promotion (${err?.message || 'Network error'}).`
       );
     } finally {
       setIsPromoting(null);
@@ -353,7 +345,7 @@ export default function AdminStudentsPage() {
           </div>
 
           <div className="p-4 bg-slate-50 border-t border-slate-200 text-xs text-slate-500 flex flex-col sm:flex-row justify-between items-center gap-2">
-            <span>Showing {filteredStudents.length} of {students.length} demo records (Production database handles 5,000+ per intake)</span>
+            <span>Total Enrolled Records: {filteredStudents.length}</span>
             <div className="flex items-center gap-2">
               <span className="text-slate-400">Indexed via:</span>
               <code className="text-xs bg-white px-2 py-0.5 rounded border border-slate-200 text-slate-700 font-mono">

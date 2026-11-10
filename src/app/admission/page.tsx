@@ -161,16 +161,32 @@ export default function OnlineAdmissionPage() {
   const handleCheckStatusSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!statusRefNo || !statusDob) return;
+
+    // Check if the user is checking the application submitted in current session
+    if (submittedData && submittedData.refNo?.toLowerCase() === statusRefNo.trim().toLowerCase()) {
+      setStatusResult({
+        refNo: submittedData.refNo,
+        candidateName: `${submittedData.firstName} ${submittedData.lastName}`,
+        fatherName: submittedData.fatherName,
+        course: `B.A. (Honours) - ${submittedData.faculty}`,
+        faculty: submittedData.faculty,
+        mjc: submittedData.mjcSubject,
+        mic: submittedData.micSubject,
+        status: 'SUBMITTED',
+        message: 'Your application has been received and is currently under administrative scrutiny by the Principal / Admission Committee.',
+      });
+      return;
+    }
+
+    // No matching record found (strict real data check)
     setStatusResult({
       refNo: statusRefNo,
-      candidateName: 'Rahul Kumar (Sample Record)',
-      fatherName: 'Ramdev Ray',
-      course: 'B.A. (Honours) - CBCS 4-Year',
-      faculty: 'Social Science',
-      mjc: 'HISTORY',
-      mic: 'POLITICAL SCIENCE',
-      status: 'DOCUMENT_VERIFIED',
-      message: 'Your documents have been verified by the college scrutiny committee. Please proceed with Semester 1 fee clearance at the accounts counter or online portal.',
+      candidateName: 'Not Found',
+      course: 'N/A',
+      faculty: 'N/A',
+      mjc: 'N/A',
+      status: 'RECORD_NOT_FOUND',
+      message: `No application found matching Reference No. "${statusRefNo}" and DOB. Please verify your reference number or submit a fresh admission form.`,
     });
   };
 

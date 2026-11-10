@@ -122,49 +122,44 @@ export async function POST(request: NextRequest) {
     }
 
     // -------------------------------------------------------------------------
-    // 2. INSTITUTIONAL FALLBACK / DEMO CHECK (For immediate developer review)
+    // 2. FIXED SUPER ADMIN VERIFICATION & STRICT REAL-DATA ENFORCEMENT
     // -------------------------------------------------------------------------
     if (!authenticatedUser) {
-      if (
-        role === 'SUPER_ADMIN' &&
-        (cleanUsername.toLowerCase() === 'mkrcollege@gmail.com' || cleanUsername.toLowerCase() === 'principal@mkrcollege.com')
-      ) {
-        if (cleanPassword === 'Mkr@arvind98' || cleanPassword === 'College@2026') {
+      if (role === 'SUPER_ADMIN') {
+        if (cleanUsername.toLowerCase() === 'mkrcollege@gmail.com' && cleanPassword === 'Mkr@arvind98') {
           authenticatedUser = {
-            userId: 'usr_super_admin_fixed',
+            userId: 'usr_mkr_super_admin',
             role: 'SUPER_ADMIN',
-            name: 'Dr. Arvind Kumar (Super Admin / Principal)',
+            name: 'Principal / Super Admin',
             email: 'mkrcollege@gmail.com',
             phone: '+91-7597052444',
           };
           redirectUrl = '/admin/principal';
+        } else {
+          return NextResponse.json(
+            {
+              success: false,
+              error: 'Invalid Super Admin credentials. Username must be mkrcollege@gmail.com with your assigned administrative password.',
+            },
+            { status: 401 }
+          );
         }
-      } else if (
-        role === 'FACULTY' &&
-        (cleanUsername === 'FAC-HIST-001' || cleanUsername.toUpperCase().startsWith('FAC') || cleanUsername.toLowerCase().includes('faculty') || cleanUsername.toLowerCase().includes('teacher'))
-      ) {
-        authenticatedUser = {
-          userId: 'usr_faculty_demo',
-          facultyId: 'fac_hist_01',
-          role: 'FACULTY',
-          name: 'Dr. Rameshwar Singh (HOD History)',
-          email: 'rameshwar.singh@mkrcollege.com',
-          phone: '9876543210',
-        };
-        redirectUrl = '/faculty';
-      } else if (
-        role === 'STUDENT' &&
-        (cleanUsername === '26/BA/0042' || cleanUsername.startsWith('MKR-') || cleanUsername.includes('/') || cleanUsername.length >= 4)
-      ) {
-        authenticatedUser = {
-          userId: 'usr_student_demo',
-          studentId: 'std_demo_01',
-          role: 'STUDENT',
-          name: 'Aarav Kumar Sharma',
-          email: 'aarav.sharma@gmail.com',
-          phone: '9123456789',
-        };
-        redirectUrl = '/student';
+      } else if (role === 'FACULTY') {
+        return NextResponse.json(
+          {
+            success: false,
+            error: 'Faculty account not found. Faculty accounts can only be created by the Super Admin in the Admin Console.',
+          },
+          { status: 401 }
+        );
+      } else if (role === 'STUDENT') {
+        return NextResponse.json(
+          {
+            success: false,
+            error: 'Student record not found. Please submit your application via the Online Admission Form first.',
+          },
+          { status: 401 }
+        );
       }
     }
 
