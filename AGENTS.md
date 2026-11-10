@@ -6,8 +6,10 @@ Welcome to the **ERP System** project repository. Every agent working in this wo
 
 ## 1. System Vision & Architecture
 - **Domain**: Enterprise Resource Planning (ERP).
+- **Target Deployment**: **Hostinger** compatible (optimized for Node.js app manager / VPS, efficient memory footprint, environment-variable configuration, static asset bundling).
+- **Database**: **MySQL** (utf8mb4, strict mode, ACID transactions for financial and inventory movements, foreign key constraints, connection pooling).
 - **Core Principles**:
-  - **Modular Monorepo / Domain-Driven Design**: Keep distinct ERP domains (e.g., Sales, Inventory, Accounting, HR, Settings) separated cleanly with their own data models, business logic, and UI components.
+  - **Modular Monorepo / Domain-Driven Design**: Keep distinct ERP domains (Sales, Inventory, Invoicing, Customers/Suppliers, HR, Settings) separated cleanly with their own data models, business logic, and UI components.
   - **Auditability**: All transactional operations (financial entries, inventory movements, status transitions) must include audit timestamps, user attribution, and immutable audit logs.
   - **Role-Based Access Control (RBAC)**: Enforce granular permissions (Admin, Manager, Staff, Read-Only) across all API endpoints and UI navigation.
 
@@ -29,3 +31,4 @@ Welcome to the **ERP System** project repository. Every agent working in this wo
 3. Implement backend services and API validation.
 4. Construct responsive, accessible UI views with loading and empty states.
 5. Verify build, tests, and runtime integrity before committing changes.
+
