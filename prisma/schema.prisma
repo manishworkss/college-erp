@@ -187,28 +187,49 @@ model Student {
   applicationNo   String          @unique // e.g. "MKR-2026-0001"
   collegeRollNo   String?         @unique // e.g. "26/BA/0042"
   universityRegNo String?         @unique // Official BRABU Registration Number
+  universityAppNo String?                 // BRABU Portal Application Number
 
   // Personal Information
   fullName        String
+  firstName       String?
+  middleName      String?
+  lastName        String?
   fatherName      String
+  fatherPhone     String?
   motherName      String
   dateOfBirth     DateTime
-  gender          String          // "Male", "Female", "Other"
-  category        String          // "GEN", "OBC", "EBC", "SC", "ST", "EWS"
+  gender          String          // "Male", "Female", "Transgender"
+  category        String          // "General", "BC", "OBC", "EBC", "SC", "ST", "WBC", "EWS"
+  religion        String?         @default("Hinduism")
+  maritalStatus   String?         @default("Unmarried")
   caste           String?
-  aadharNo        String?         @unique
+  aadharNo        String?
+  apaarNo         String?         // APAAR / ABC ID
   phone           String
   alternatePhone  String?
   email           String
   address         String          @db.Text
+  currentAddress  String?         @db.Text
+  permanentAddress String?        @db.Text
   district        String          @default("Sitamarhi")
   state           String          @default("Bihar")
   pincode         String          @default("843302")
+
+  // Academic Preference & CBCS Subjects
+  faculty         String?         // "Social Science", "Humanities", "Commerce"
+  mjcSubject      String?         // Major Course
+  micSubject      String?         // Minor Course
+  mdcSubject      String?         // Multidisciplinary Course
+  aecSubject      String?         // Ability Enhancement Course
+  secSubject      String?         // Skill Enhancement Course
+  vacSubject      String?         // Value Added Course
+  academicRecords Json?           // Matric (10th) and Inter (12th) records
 
   // Documents
   photoUrl        String?
   signatureUrl    String?
   marksheet12thUrl String?
+  documentUrl     String?
 
   // Academic Standing
   sessionId       String
