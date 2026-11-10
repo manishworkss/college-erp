@@ -169,12 +169,12 @@ export default function AdminStudentsPage() {
           <div className="flex items-center gap-3">
             <Link
               href="/"
-              className="w-10 h-10 rounded-lg bg-[#0f2744] text-[#d4af37] flex items-center justify-center font-bold"
+              className="w-10 h-10 rounded-lg bg-[#800000] text-[#d4af37] flex items-center justify-center font-bold"
             >
               <Building className="w-5 h-5" />
             </Link>
             <div>
-              <h1 className="text-lg font-bold text-[#0f2744] leading-tight">
+              <h1 className="text-lg font-bold text-[#800000] leading-tight">
                 MKR College ERP — Administration
               </h1>
               <p className="text-xs text-slate-500 font-medium">
@@ -270,7 +270,7 @@ export default function AdminStudentsPage() {
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 placeholder="Search Roll No, App No, or Name..."
-                className="w-full pl-9 pr-4 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0f2744] bg-slate-50"
+                className="w-full pl-9 pr-4 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#800000] bg-slate-50"
               />
             </div>
 
@@ -360,7 +360,7 @@ export default function AdminStudentsPage() {
                         <button
                           onClick={() => handleSimulatePromotion(s)}
                           disabled={isPromoting === s.id}
-                          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-white bg-[#0f2744] hover:bg-[#1b4374] disabled:bg-slate-300 rounded-lg shadow-sm transition"
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-white bg-[#800000] hover:bg-[#1b4374] disabled:bg-slate-300 rounded-lg shadow-sm transition"
                         >
                           {isPromoting === s.id ? (
                             <RefreshCw className="w-3.5 h-3.5 animate-spin" />

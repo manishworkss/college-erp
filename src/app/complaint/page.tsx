@@ -135,7 +135,7 @@ export default function GrievanceComplaintPage() {
                           description: '',
                         });
                       }}
-                      className="px-5 py-2.5 text-xs font-bold text-white bg-[#0f2744] rounded-lg shadow-sm"
+                      className="px-5 py-2.5 text-xs font-bold text-white bg-[#800000] rounded-lg shadow-sm"
                     >
                       File Another Grievance
                     </button>
@@ -157,7 +157,7 @@ export default function GrievanceComplaintPage() {
                         placeholder="Your full name"
                         value={form.name}
                         onChange={(e) => setForm({ ...form, name: e.target.value })}
-                        className="w-full text-sm px-3.5 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-[#0f2744] focus:outline-none"
+                        className="w-full text-sm px-3.5 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-[#800000] focus:outline-none"
                       />
                     </div>
 
@@ -169,7 +169,7 @@ export default function GrievanceComplaintPage() {
                         placeholder="e.g. 26/BA/0042 or MKR-2026-00102"
                         value={form.rollNoOrAppNo}
                         onChange={(e) => setForm({ ...form, rollNoOrAppNo: e.target.value })}
-                        className="w-full text-sm px-3.5 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-[#0f2744] focus:outline-none"
+                        className="w-full text-sm px-3.5 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-[#800000] focus:outline-none"
                       />
                     </div>
 
@@ -182,7 +182,7 @@ export default function GrievanceComplaintPage() {
                         placeholder="Active mobile number"
                         value={form.phone}
                         onChange={(e) => setForm({ ...form, phone: e.target.value })}
-                        className="w-full text-sm px-3.5 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-[#0f2744] focus:outline-none"
+                        className="w-full text-sm px-3.5 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-[#800000] focus:outline-none"
                       />
                     </div>
 
@@ -194,7 +194,7 @@ export default function GrievanceComplaintPage() {
                         placeholder="youremail@gmail.com"
                         value={form.email}
                         onChange={(e) => setForm({ ...form, email: e.target.value })}
-                        className="w-full text-sm px-3.5 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-[#0f2744] focus:outline-none"
+                        className="w-full text-sm px-3.5 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-[#800000] focus:outline-none"
                       />
                     </div>
 
@@ -203,7 +203,7 @@ export default function GrievanceComplaintPage() {
                       <select
                         value={form.category}
                         onChange={(e) => setForm({ ...form, category: e.target.value })}
-                        className="w-full text-sm px-3.5 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-[#0f2744] focus:outline-none bg-white font-medium"
+                        className="w-full text-sm px-3.5 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-[#800000] focus:outline-none bg-white font-medium"
                       >
                         <option value="Academic">Academic & CBCS Subject Selection</option>
                         <option value="Examination">Examinations, Admit Card & Results</option>
@@ -219,7 +219,7 @@ export default function GrievanceComplaintPage() {
                       <select
                         value={form.priority}
                         onChange={(e) => setForm({ ...form, priority: e.target.value })}
-                        className="w-full text-sm px-3.5 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-[#0f2744] focus:outline-none bg-white"
+                        className="w-full text-sm px-3.5 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-[#800000] focus:outline-none bg-white"
                       >
                         <option value="Low">Normal (Standard Query)</option>
                         <option value="Medium">Medium (Affecting Semester/Class)</option>
@@ -235,7 +235,7 @@ export default function GrievanceComplaintPage() {
                         placeholder="Brief summary of the issue (e.g. Discrepancy in Minor Subject Allocation)"
                         value={form.subject}
                         onChange={(e) => setForm({ ...form, subject: e.target.value })}
-                        className="w-full text-sm px-3.5 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-[#0f2744] focus:outline-none"
+                        className="w-full text-sm px-3.5 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-[#800000] focus:outline-none"
                       />
                     </div>
 
@@ -247,7 +247,7 @@ export default function GrievanceComplaintPage() {
                         placeholder="Provide full particulars, dates, receipts, or teacher/office interactions relevant to your grievance..."
                         value={form.description}
                         onChange={(e) => setForm({ ...form, description: e.target.value })}
-                        className="w-full text-sm px-3.5 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-[#0f2744] focus:outline-none"
+                        className="w-full text-sm px-3.5 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-[#800000] focus:outline-none"
                       ></textarea>
                     </div>
                   </div>
@@ -255,7 +255,7 @@ export default function GrievanceComplaintPage() {
                   <div className="pt-2 flex justify-end">
                     <button
                       type="submit"
-                      className="px-8 py-3 text-sm font-bold text-white bg-[#0f2744] hover:bg-[#1b4374] rounded-xl shadow-md transition flex items-center gap-2"
+                      className="px-8 py-3 text-sm font-bold text-white bg-[#800000] hover:bg-[#1b4374] rounded-xl shadow-md transition flex items-center gap-2"
                     >
                       <Send className="w-4 h-4 text-[#d4af37]" /> Submit Official Grievance
                     </button>
@@ -286,13 +286,13 @@ export default function GrievanceComplaintPage() {
                       placeholder="e.g. MKR-GRV-2026-4891"
                       value={ticketSearch}
                       onChange={(e) => setTicketSearch(e.target.value)}
-                      className="w-full text-sm px-4 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-[#0f2744] focus:outline-none"
+                      className="w-full text-sm px-4 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-[#800000] focus:outline-none"
                     />
                   </div>
 
                   <button
                     type="submit"
-                    className="w-full py-2.5 text-xs font-bold text-white bg-[#0f2744] hover:bg-[#1b4374] rounded-lg shadow-sm transition"
+                    className="w-full py-2.5 text-xs font-bold text-white bg-[#800000] hover:bg-[#1b4374] rounded-lg shadow-sm transition"
                   >
                     Check Grievance Status
                   </button>
@@ -337,3 +337,4 @@ export default function GrievanceComplaintPage() {
     </div>
   );
 }
+

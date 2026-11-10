@@ -39,7 +39,7 @@ export default function ContactPage() {
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
           {/* Header */}
           <div className="text-center max-w-2xl mx-auto mb-10">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-50 text-[#0f2744] text-xs font-bold mb-3">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-50 text-[#800000] text-xs font-bold mb-3">
               <Building className="w-3.5 h-3.5" /> Institutional Helpdesk & Administrative Offices
             </div>
             <h1 className="text-3xl font-extrabold text-slate-900">
@@ -61,7 +61,7 @@ export default function ContactPage() {
                   </div>
                   <h3 className="text-sm font-bold text-slate-900">Admission & CBCS Desk</h3>
                   <p className="text-xs text-slate-500 mt-1">UG Admission Session 2026–2030, Subject Allocations & Document Verification</p>
-                  <p className="text-xs font-bold text-[#0f2744] mt-3">+91-7597052444</p>
+                  <p className="text-xs font-bold text-[#800000] mt-3">+91-7597052444</p>
                 </div>
 
                 <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
@@ -70,7 +70,7 @@ export default function ContactPage() {
                   </div>
                   <h3 className="text-sm font-bold text-slate-900">Accounts & Fee Counter</h3>
                   <p className="text-xs text-slate-500 mt-1">Semester Fee Clearance, Receipt Re-issuance & Concession Verification</p>
-                  <p className="text-xs font-bold text-[#0f2744] mt-3">+91-7544052444</p>
+                  <p className="text-xs font-bold text-[#800000] mt-3">+91-7544052444</p>
                 </div>
 
                 <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
@@ -79,7 +79,7 @@ export default function ContactPage() {
                   </div>
                   <h3 className="text-sm font-bold text-slate-900">Examination Section</h3>
                   <p className="text-xs text-slate-500 mt-1">BRABU University Exam Forms, Internal Assessment (CIA) & Admit Cards</p>
-                  <p className="text-xs font-bold text-[#0f2744] mt-3">principal@mkrcollege.com</p>
+                  <p className="text-xs font-bold text-[#800000] mt-3">principal@mkrcollege.com</p>
                 </div>
 
                 <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
@@ -88,7 +88,7 @@ export default function ContactPage() {
                   </div>
                   <h3 className="text-sm font-bold text-slate-900">Principal Office</h3>
                   <p className="text-xs text-slate-500 mt-1">Administrative matters, institutional endorsements & university communications</p>
-                  <p className="text-xs font-bold text-[#0f2744] mt-3">mkrdr.grdcollege@gmail.com</p>
+                  <p className="text-xs font-bold text-[#800000] mt-3">mkrdr.grdcollege@gmail.com</p>
                 </div>
               </div>
 
@@ -120,7 +120,7 @@ export default function ContactPage() {
                           placeholder="Your name"
                           value={form.name}
                           onChange={(e) => setForm({ ...form, name: e.target.value })}
-                          className="w-full text-sm px-3.5 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-[#0f2744] focus:outline-none"
+                          className="w-full text-sm px-3.5 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-[#800000] focus:outline-none"
                         />
                       </div>
 
@@ -132,7 +132,7 @@ export default function ContactPage() {
                           placeholder="10-digit mobile"
                           value={form.phone}
                           onChange={(e) => setForm({ ...form, phone: e.target.value })}
-                          className="w-full text-sm px-3.5 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-[#0f2744] focus:outline-none"
+                          className="w-full text-sm px-3.5 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-[#800000] focus:outline-none"
                         />
                       </div>
 
@@ -144,7 +144,7 @@ export default function ContactPage() {
                           placeholder="your.email@gmail.com"
                           value={form.email}
                           onChange={(e) => setForm({ ...form, email: e.target.value })}
-                          className="w-full text-sm px-3.5 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-[#0f2744] focus:outline-none"
+                          className="w-full text-sm px-3.5 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-[#800000] focus:outline-none"
                         />
                       </div>
 
@@ -153,7 +153,7 @@ export default function ContactPage() {
                         <select
                           value={form.department}
                           onChange={(e) => setForm({ ...form, department: e.target.value })}
-                          className="w-full text-sm px-3.5 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-[#0f2744] focus:outline-none bg-white"
+                          className="w-full text-sm px-3.5 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-[#800000] focus:outline-none bg-white"
                         >
                           <option value="Admission">Admission & CBCS Enrollment</option>
                           <option value="Accounts">Accounts & Fee Payment</option>
@@ -171,14 +171,14 @@ export default function ContactPage() {
                         placeholder="State your question or clarification in detail..."
                         value={form.message}
                         onChange={(e) => setForm({ ...form, message: e.target.value })}
-                        className="w-full text-sm px-3.5 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-[#0f2744] focus:outline-none"
+                        className="w-full text-sm px-3.5 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-[#800000] focus:outline-none"
                       ></textarea>
                     </div>
 
                     <div className="flex justify-end pt-2">
                       <button
                         type="submit"
-                        className="px-6 py-2.5 text-xs font-bold text-white bg-[#0f2744] hover:bg-[#1b4374] rounded-lg shadow-sm flex items-center gap-2 transition"
+                        className="px-6 py-2.5 text-xs font-bold text-white bg-[#800000] hover:bg-[#1b4374] rounded-lg shadow-sm flex items-center gap-2 transition"
                       >
                         <Send className="w-3.5 h-3.5 text-[#d4af37]" /> Send Message
                       </button>
@@ -242,7 +242,7 @@ export default function ContactPage() {
               </div>
 
               {/* Sitamarhi Location Badge */}
-              <div className="bg-[#0f2744] text-white rounded-2xl p-6 shadow-sm">
+              <div className="bg-[#800000] text-white rounded-2xl p-6 shadow-sm">
                 <div className="text-xs uppercase font-bold text-[#d4af37] tracking-wider mb-2">
                   Historic Punaura Dham
                 </div>
@@ -260,3 +260,4 @@ export default function ContactPage() {
     </div>
   );
 }
+
