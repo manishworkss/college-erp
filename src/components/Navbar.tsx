@@ -23,15 +23,12 @@ export default function Navbar() {
 
   return (
     <>
-      {/* Top Banner - Complementary to mkrcollege.com with #800000 Maroon */}
-      <div className="bg-[#800000] text-white py-1.5 px-4 text-xs font-medium border-b border-[#5C0000]">
-        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row justify-between items-center gap-1.5 text-center sm:text-left">
+      {/* Top Banner - Clean, Centered, and Simple */}
+      <div className="bg-[#800000] text-white py-1.5 px-4 text-xs font-medium border-b border-[#5C0000] text-center">
+        <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-center gap-2 sm:gap-3 text-center">
           <span>Affiliated with Babasaheb Bhimrao Ambedkar Bihar University (BRABU), Muzaffarpur</span>
-          <div className="flex items-center gap-3 text-white/90">
-            <span>Helpline: +91-7597052444</span>
-            <span className="hidden sm:inline">•</span>
-            <span className="hidden sm:inline">Sitamarhi, Bihar – 843302</span>
-          </div>
+          <span className="hidden sm:inline text-white/60">•</span>
+          <span className="text-white/95">Helpline: +91-7597052444</span>
         </div>
       </div>
 
