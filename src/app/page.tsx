@@ -173,7 +173,10 @@ export default function Home() {
             </div>
 
             {/* Card 5: Administration & Principal */}
-            <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm hover:shadow-md transition flex flex-col justify-between group">
+            <Link 
+              href="/admin/students"
+              className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm hover:shadow-md transition flex flex-col justify-between group block"
+            >
               <div>
                 <div className="w-12 h-12 rounded-xl bg-slate-100 text-slate-800 flex items-center justify-center mb-5 group-hover:scale-105 transition-transform">
                   <ShieldCheck className="w-6 h-6" />
@@ -185,10 +188,10 @@ export default function Home() {
                 </p>
               </div>
               <div className="mt-6 pt-4 border-t border-slate-100 flex items-center justify-between">
-                <span className="text-xs font-semibold text-slate-800">Admin Sign-in</span>
+                <span className="text-xs font-semibold text-slate-800">Admin & Auto-Promotion Dashboard</span>
                 <ArrowRight className="w-4 h-4 text-slate-800 group-hover:translate-x-1 transition-transform" />
               </div>
-            </div>
+            </Link>
 
             {/* Card 6: Database & Hostinger Diagnostics */}
             <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm hover:shadow-md transition flex flex-col justify-between group">
