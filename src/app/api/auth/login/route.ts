@@ -127,16 +127,18 @@ export async function POST(request: NextRequest) {
     if (!authenticatedUser) {
       if (
         role === 'SUPER_ADMIN' &&
-        (cleanUsername === 'principal@mkrcollege.com' || cleanUsername.toLowerCase().includes('admin') || cleanUsername.toLowerCase().includes('principal'))
+        (cleanUsername.toLowerCase() === 'mkrcollege@gmail.com' || cleanUsername.toLowerCase() === 'principal@mkrcollege.com')
       ) {
-        authenticatedUser = {
-          userId: 'usr_principal_demo',
-          role: 'PRINCIPAL',
-          name: 'Prof. (Dr.) Ganesh Ray (Principal)',
-          email: 'principal@mkrcollege.com',
-          phone: '+91-7597052444',
-        };
-        redirectUrl = '/admin/principal';
+        if (cleanPassword === 'Mkr@arvind98' || cleanPassword === 'College@2026') {
+          authenticatedUser = {
+            userId: 'usr_super_admin_fixed',
+            role: 'SUPER_ADMIN',
+            name: 'Dr. Arvind Kumar (Super Admin / Principal)',
+            email: 'mkrcollege@gmail.com',
+            phone: '+91-7597052444',
+          };
+          redirectUrl = '/admin/principal';
+        }
       } else if (
         role === 'FACULTY' &&
         (cleanUsername === 'FAC-HIST-001' || cleanUsername.toUpperCase().startsWith('FAC') || cleanUsername.toLowerCase().includes('faculty') || cleanUsername.toLowerCase().includes('teacher'))

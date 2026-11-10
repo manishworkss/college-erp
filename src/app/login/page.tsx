@@ -47,8 +47,8 @@ export default function LoginPage() {
     SUPER_ADMIN: {
       label: 'Super Admin',
       fullLabel: 'Super Admin (Principal)',
-      placeholder: 'Admin ID / Official Email',
-      defaultUser: 'principal@mkrcollege.com',
+      placeholder: 'mkrcollege@gmail.com',
+      defaultUser: 'mkrcollege@gmail.com',
       destination: '/admin/principal',
     },
     FACULTY: {
@@ -76,7 +76,11 @@ export default function LoginPage() {
   const handleQuickFill = (targetRole: UserRole) => {
     setRole(targetRole);
     setUsername(roleConfig[targetRole].defaultUser);
-    setPassword('College@2026');
+    if (targetRole === 'SUPER_ADMIN') {
+      setPassword('Mkr@arvind98');
+    } else {
+      setPassword('College@2026');
+    }
     setErrorMessage('');
     setSuccessMessage(`Auto-filled credentials for ${roleConfig[targetRole].fullLabel}`);
   };
