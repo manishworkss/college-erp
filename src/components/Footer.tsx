@@ -1,6 +1,7 @@
 import React from 'react';
 import Link from 'next/link';
-import { School, MapPin, Phone, Mail, Clock, ShieldCheck } from 'lucide-react';
+import CollegeLogo from '@/components/CollegeLogo';
+import { MapPin, Phone, Mail, Clock, ShieldCheck } from 'lucide-react';
 
 export default function Footer() {
   return (
@@ -10,8 +11,8 @@ export default function Footer() {
           {/* Identity */}
           <div>
             <div className="flex items-center gap-2.5 mb-3">
-              <div className="w-8 h-8 rounded-lg bg-[#800000] text-white flex items-center justify-center font-bold">
-                <School className="w-5 h-5 text-[#D4AF37]" />
+              <div className="bg-white/90 p-1 rounded-lg">
+                <CollegeLogo size={32} />
               </div>
               <span className="text-white font-bold text-sm">
                 M.K.R. Dr. G.R.D. College ERP

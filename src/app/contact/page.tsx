@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
+import CollegeLogo from '@/components/CollegeLogo';
 import { 
   MapPin, 
   Phone, 
@@ -243,11 +244,18 @@ export default function ContactPage() {
 
               {/* Sitamarhi Location Badge */}
               <div className="bg-[#800000] text-white rounded-2xl p-6 shadow-sm">
-                <div className="text-xs uppercase font-bold text-[#d4af37] tracking-wider mb-2">
-                  Historic Punaura Dham
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="bg-white/95 p-1 rounded-xl">
+                    <CollegeLogo size={42} />
+                  </div>
+                  <div>
+                    <div className="text-[11px] uppercase font-bold text-[#D4AF37] tracking-wider">
+                      Historic Punaura Dham
+                    </div>
+                    <h4 className="text-sm font-bold">M.K.R. Dr. G.R.D. College</h4>
+                  </div>
                 </div>
-                <h4 className="text-base font-bold">Sacred Heritage of Sitamarhi</h4>
-                <p className="text-xs text-slate-300 mt-2 leading-relaxed">
+                <p className="text-xs text-white/90 leading-relaxed">
                   Located near the historic birthplace of Mata Sita at Punaura Dham, providing inclusive higher education under B.R.A. Bihar University.
                 </p>
               </div>

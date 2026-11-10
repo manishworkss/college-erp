@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
+import CollegeLogo from '@/components/CollegeLogo';
 import { 
   Users, 
   Search, 
@@ -167,11 +168,8 @@ export default function AdminStudentsPage() {
       <header className="bg-white border-b border-slate-200 sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <Link
-              href="/"
-              className="w-10 h-10 rounded-lg bg-[#800000] text-[#d4af37] flex items-center justify-center font-bold"
-            >
-              <Building className="w-5 h-5" />
+            <Link href="/" className="shrink-0">
+              <CollegeLogo size={42} />
             </Link>
             <div>
               <h1 className="text-lg font-bold text-[#800000] leading-tight">

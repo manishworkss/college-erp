@@ -3,7 +3,8 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { School, Menu, X, ShieldCheck, Home, GraduationCap, AlertCircle, PhoneCall } from 'lucide-react';
+import CollegeLogo from '@/components/CollegeLogo';
+import { Menu, X, ShieldCheck, Home, GraduationCap, AlertCircle, PhoneCall } from 'lucide-react';
 
 export default function Navbar() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -38,14 +39,12 @@ export default function Navbar() {
 
       {/* Main Header */}
       <header className="bg-white border-b border-slate-200 shadow-sm sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex items-center justify-between gap-4">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2.5 flex items-center justify-between gap-4">
           {/* Logo & College Identity */}
-          <Link href="/" className="flex items-center gap-3 shrink-0">
-            <div className="w-11 h-11 rounded-xl bg-[#800000] text-white flex items-center justify-center shadow-sm">
-              <School className="w-6 h-6 text-[#D4AF37]" />
-            </div>
+          <Link href="/" className="flex items-center gap-3 shrink-0 group">
+            <CollegeLogo size={46} className="group-hover:scale-105 transition-transform" />
             <div>
-              <div className="text-base sm:text-lg font-bold text-[#800000] tracking-tight leading-none">
+              <div className="text-base sm:text-lg font-extrabold text-[#800000] tracking-tight leading-none">
                 M.K.R. Dr. G.R.D. College
               </div>
               <p className="text-[11px] text-slate-500 font-medium mt-1 leading-none hidden sm:block">

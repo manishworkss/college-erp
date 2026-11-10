@@ -2,6 +2,7 @@ import React from 'react';
 import Link from 'next/link';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
+import CollegeLogo from '@/components/CollegeLogo';
 import { 
   GraduationCap, 
   AlertCircle, 
@@ -28,8 +29,11 @@ export default function Home() {
             </p>
           </div>
 
-          {/* ERP Portal Title Header */}
+          {/* ERP Portal Title Header with Logo */}
           <div className="text-center mb-8">
+            <div className="flex justify-center mb-3">
+              <CollegeLogo size={68} />
+            </div>
             <h1 className="text-2xl sm:text-3xl font-extrabold text-[#800000] tracking-tight">
               M.K.R. Dr. G.R.D. College ERP
             </h1>
