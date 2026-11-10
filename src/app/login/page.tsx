@@ -12,15 +12,15 @@ type UserRole = 'SUPER_ADMIN' | 'FACULTY' | 'STUDENT';
 export default function LoginPage() {
   const router = useRouter();
 
-  // 2 Official Showcase Images for ERP Panel (Exact 660x555 WebP)
+  // 2 Official Showcase Images - called directly as-is with original extensions
   const erpSlides = [
     {
-      src: '/assets/erp-panel/mkr-college-sitamarhi-main-campus-building.webp',
-      alt: 'M.K.R. Dr. G.R.D. College Main Campus Building, Punaura Dham, Sitamarhi',
+      src: '/assets/erp-panel/image-1.jpg',
+      alt: 'M.K.R. Dr. G.R.D. College Main Campus Building',
     },
     {
-      src: '/assets/erp-panel/mkr-college-leadership-award-ceremony.webp',
-      alt: 'M.K.R. Dr. G.R.D. College Institutional Leadership Award Ceremony',
+      src: '/assets/erp-panel/image-2.webp',
+      alt: 'M.K.R. Dr. G.R.D. College Award Ceremony',
     },
   ];
 
