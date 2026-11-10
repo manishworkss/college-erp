@@ -5,7 +5,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import CollegeLogo from '@/components/CollegeLogo';
-import { Info, ArrowLeft, ArrowRight, Eye, EyeOff } from 'lucide-react';
+import { Info, ArrowRight, Eye, EyeOff } from 'lucide-react';
 
 type UserRole = 'SUPER_ADMIN' | 'FACULTY' | 'STUDENT';
 
@@ -160,15 +160,6 @@ export default function LoginPage() {
             />
           </div>
         ))}
-
-        {/* Floating subtle home link on top left */}
-        <Link
-          href="/"
-          className="absolute top-4 left-4 z-20 inline-flex items-center gap-1.5 px-3 py-1.5 bg-black/40 hover:bg-black/60 text-white backdrop-blur-md rounded-lg text-xs font-semibold transition"
-        >
-          <ArrowLeft className="w-3.5 h-3.5" />
-          <span>Home</span>
-        </Link>
 
         {/* Minimalist slide indicator pills at bottom */}
         <div className="absolute bottom-5 left-1/2 -translate-x-1/2 z-20 flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/40 backdrop-blur-md">
@@ -366,13 +357,6 @@ export default function LoginPage() {
                 Student
               </button>
             </div>
-          </div>
-
-          {/* Back to Home Link for Mobile View */}
-          <div className="mt-4 text-center lg:hidden">
-            <Link href="/" className="text-xs text-slate-500 hover:text-slate-800">
-              ← Return to Main Website
-            </Link>
           </div>
 
         </div>

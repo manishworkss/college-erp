@@ -30,11 +30,6 @@ export default function Footer() {
             </div>
             <ul className="space-y-1.5 text-[11px]">
               <li>
-                <Link href="/" className="hover:text-white transition">
-                  • ERP Home
-                </Link>
-              </li>
-              <li>
                 <Link href="/admission" className="hover:text-white transition">
                   • Online Admission Form (UG CBCS)
                 </Link>
@@ -45,8 +40,8 @@ export default function Footer() {
                 </Link>
               </li>
               <li>
-                <Link href="/contact" className="hover:text-white transition">
-                  • Campus Helpdesk & Contact
+                <Link href="/login" className="hover:text-white transition">
+                  • Centralized ERP Login
                 </Link>
               </li>
             </ul>

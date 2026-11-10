@@ -9,7 +9,6 @@ import {
   UserCheck, 
   GraduationCap, 
   AlertCircle, 
-  PhoneCall, 
   ArrowRight,
   Bell
 } from 'lucide-react';
@@ -160,12 +159,6 @@ export default function Home() {
                 className="px-3.5 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold transition flex items-center gap-1.5"
               >
                 <AlertCircle className="w-3.5 h-3.5 text-amber-700" /> Grievance & Complain
-              </Link>
-              <Link
-                href="/contact"
-                className="px-3.5 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold transition flex items-center gap-1.5"
-              >
-                <PhoneCall className="w-3.5 h-3.5 text-blue-700" /> Contact Us
               </Link>
             </div>
           </div>

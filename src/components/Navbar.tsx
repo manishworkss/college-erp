@@ -4,17 +4,15 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import CollegeLogo from '@/components/CollegeLogo';
-import { Menu, X, ShieldCheck, Home, GraduationCap, AlertCircle, PhoneCall } from 'lucide-react';
+import { Menu, X, ShieldCheck, GraduationCap, AlertCircle } from 'lucide-react';
 
 export default function Navbar() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const pathname = usePathname();
 
   const navLinks = [
-    { name: 'Home', href: '/', icon: Home },
     { name: 'Online Admission Form', href: '/admission', icon: GraduationCap },
     { name: 'Complain / Grievance', href: '/complaint', icon: AlertCircle },
-    { name: 'Contact Us', href: '/contact', icon: PhoneCall },
   ];
 
   const isActive = (path: string) => {
