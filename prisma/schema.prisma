@@ -1,7 +1,7 @@
 // Production Enterprise Prisma Schema for MKR College ERP
 // Matashri Kaushalya Ramdev Dr. Ganesh Ray Degree College (Sitamarhi, Bihar)
 // Affiliated with B.R.A. Bihar University (BRABU), Muzaffarpur
-// Optimized for MySQL 8 / Hostinger with high-concurrency indexing (> 5,000 students / intake)
+// Comprehensive Modular Architecture (RBAC, Faculty-Subject, Sessions, Exams, Multi-Tier Fees, Auditing)
 
 generator client {
   provider = "prisma-client-js"
@@ -12,9 +12,9 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// ----------------------------------------------------
-// ENUMS & STATE MACHINES
-// ----------------------------------------------------
+// =========================================================================
+// 1. ENUMS & STATE MACHINES
+// =========================================================================
 
 enum Role {
   SUPER_ADMIN
@@ -29,12 +29,12 @@ enum Role {
 
 enum StudentStatus {
   APPLIED              // Initial application submitted
-  DOCUMENT_VERIFIED    // Documents verified by college clerk
-  ADMITTED             // Fee paid, Roll No assigned, actively studying
-  PROMOTED             // Transitioned to next semester
-  DETAINED             // Detained due to attendance or university regulations
+  DOCUMENT_VERIFIED    // Scrutinized by college administration
+  ADMITTED             // Fee paid, Roll No assigned, actively enrolled
+  PROMOTED             // Successfully progressed to next semester
+  DETAINED             // Detained due to attendance / regulations
   SUSPENDED            // Temporarily suspended
-  PASSED_OUT           // Successfully graduated (Alumni)
+  PASSED_OUT           // Graduated (Alumni)
   REJECTED             // Application rejected
 }
 
@@ -45,6 +45,14 @@ enum SemesterRecordStatus {
   EXAM_FORM_SUBMITTED
   SEMESTER_COMPLETED
   DETAINED
+}
+
+enum InvoiceStatus {
+  UNPAID
+  PARTIALLY_PAID
+  PAID
+  OVERDUE
+  WAIVED
 }
 
 enum PaymentStatus {
@@ -79,16 +87,57 @@ enum SubjectCategory {
   VAC // Value Added Course (Ethics, Environment, Yoga)
 }
 
-// ----------------------------------------------------
-// CORE USER & AUTH (RBAC)
-// ----------------------------------------------------
+enum AttendanceStatus {
+  PRESENT
+  ABSENT
+  LEAVE
+  EXCUSED
+}
+
+enum ExamType {
+  SEMESTER_END
+  MID_TERM
+  CONTINUOUS_INTERNAL_ASSESSMENT
+  PRACTICAL
+  SUPPLEMENTARY
+}
+
+enum ExamStatus {
+  SCHEDULED
+  ONGOING
+  COMPLETED
+  RESULTS_PUBLISHED
+}
+
+enum ResultGrade {
+  O   // Outstanding (90-100)
+  A_PLUS // Excellent (80-89)
+  A   // Very Good (70-79)
+  B_PLUS // Good (60-69)
+  B   // Above Average (55-59)
+  C   // Average (50-54)
+  P   // Pass (45-49)
+  F   // Fail (<45)
+  AB  // Absent
+}
+
+enum NotificationTargetType {
+  ALL
+  ROLE_BASED
+  INDIVIDUAL_USER
+  BATCH_COURSE
+}
+
+// =========================================================================
+// 2. CORE AUTHENTICATION & EXTENSIBLE RBAC
+// =========================================================================
 
 model User {
   id           String      @id @default(cuid())
   email        String      @unique
   passwordHash String
   name         String
-  role         Role        @default(STUDENT)
+  role         Role        @default(STUDENT) // Fast enum fallback
   isActive     Boolean     @default(true)
   phone        String?     @unique
   lastLoginAt  DateTime?
@@ -99,17 +148,72 @@ model User {
   faculty      Faculty?
   auditLogs    AuditLog[]
 
+  // Extensible Granular RBAC
+  roleAssignments     UserRoleAssignment[]
+  receivedNotifications Notification[] @relation("ReceivedNotifications")
+  sentNotifications     Notification[] @relation("SentNotifications")
+
   @@index([role, isActive])
   @@map("users")
 }
 
-// ----------------------------------------------------
-// ACADEMIC STRUCTURE (BRABU CBCS)
-// ----------------------------------------------------
+model AppRole {
+  id          String   @id @default(cuid())
+  name        String   @unique // e.g. "SUPER_ADMIN", "FACULTY_HEAD", "STUDENT_REPRESENTATIVE"
+  description String?
+  isSystem    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  permissions UserRoleAssignment[]
+  rolePermissions RolePermission[]
+
+  @@map("app_roles")
+}
+
+model Permission {
+  id          String   @id @default(cuid())
+  code        String   @unique // e.g. "STUDENT_CREATE", "ATTENDANCE_MARK", "MARKS_ENTRY", "FEE_COLLECT", "CONFIG_EDIT"
+  module      String   // "STUDENTS", "FACULTY", "ATTENDANCE", "EXAMS", "FEES", "SETTINGS"
+  description String?
+  createdAt   DateTime @default(now())
+
+  roles       RolePermission[]
+
+  @@index([module])
+  @@map("permissions")
+}
+
+model RolePermission {
+  id           String     @id @default(cuid())
+  roleId       String
+  role         AppRole    @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permissionId String
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@unique([roleId, permissionId])
+  @@map("role_permissions")
+}
+
+model UserRoleAssignment {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  roleId    String
+  role      AppRole  @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  assignedAt DateTime @default(now())
+
+  @@unique([userId, roleId])
+  @@map("user_role_assignments")
+}
+
+// =========================================================================
+// 3. ACADEMIC STRUCTURE (ACADEMIC YEAR, DEPARTMENTS, COURSES, SUBJECTS)
+// =========================================================================
 
 model AcademicSession {
   id                 String                     @id @default(cuid())
-  name               String                     @unique // e.g., "2026-2030", "2025-2029"
+  name               String                     @unique // e.g., "2026-2030", "2026-2027"
   startYear          Int                        // 2026
   endYear            Int                        // 2030
   isCurrent          Boolean                    @default(false)
@@ -120,6 +224,9 @@ model AcademicSession {
   semesterRecords    StudentSemesterRecord[]
   promotionLogs      PromotionHistory[]
   facultyAssignments FacultySubjectAssignment[]
+  attendanceSessions AttendanceSession[]
+  examinations       Examination[]
+  feeInvoices        FeeInvoice[]
 
   @@index([isCurrent])
   @@map("academic_sessions")
@@ -142,18 +249,19 @@ model Department {
 }
 
 model Course {
-  id           String      @id @default(cuid())
-  name         String      // e.g. "Bachelor of Arts (Honours)", "Bachelor of Commerce (Honours)"
-  code         String      @unique // e.g. "BA", "BCOM"
-  durationYear Int         @default(4) // 4-Year CBCS Degree
-  totalSemesters Int       @default(8)
-  departmentId String
-  department   Department  @relation(fields: [departmentId], references: [id])
-  createdAt    DateTime    @default(now())
+  id             String      @id @default(cuid())
+  name           String      // e.g. "Bachelor of Arts (Honours)", "Bachelor of Commerce (Honours)"
+  code           String      @unique // e.g. "BA", "BCOM"
+  durationYear   Int         @default(4) // 4-Year CBCS Degree
+  totalSemesters Int         @default(8)
+  departmentId   String
+  department     Department  @relation(fields: [departmentId], references: [id])
+  createdAt      DateTime    @default(now())
 
-  students     Student[]
-  subjects     Subject[]
-  feeConfigs   SemesterFeeConfig[]
+  students       Student[]
+  subjects       Subject[]
+  feeConfigs     SemesterFeeConfig[]
+  examinations   Examination[]
 
   @@index([departmentId])
   @@map("courses")
@@ -174,17 +282,19 @@ model Subject {
 
   enrollments        StudentSubjectEnrollment[]
   facultyAssignments FacultySubjectAssignment[]
+  attendanceSessions AttendanceSession[]
   attendanceRecords  AttendanceRecord[]
   ciaEvaluations     ContinuousInternalAssessment[]
+  examSubjects       ExamSubject[]
 
   @@index([courseId, semester, category])
   @@index([departmentId])
   @@map("subjects")
 }
 
-// ----------------------------------------------------
-// STUDENT LIFECYCLE & HIGH-THROUGHPUT INDEXES
-// ----------------------------------------------------
+// =========================================================================
+// 4. STUDENT LIFECYCLE & ENROLLMENTS
+// =========================================================================
 
 model Student {
   id              String          @id @default(cuid())
@@ -218,28 +328,10 @@ model Student {
   email           String
   address         String          @db.Text
   currentAddress  String?         @db.Text
-  permanentAddress String?        @db.Text
-  district        String          @default("Sitamarhi")
-  state           String          @default("Bihar")
-  pincode         String          @default("843302")
-
-  // Academic Preference & CBCS Subjects
-  faculty         String?         // "Social Science", "Humanities", "Commerce"
-  mjcSubject      String?         // Major Course
-  micSubject      String?         // Minor Course
-  mdcSubject      String?         // Multidisciplinary Course
-  aecSubject      String?         // Ability Enhancement Course
-  secSubject      String?         // Skill Enhancement Course
-  vacSubject      String?         // Value Added Course
-  academicRecords Json?           // Matric (10th) and Inter (12th) records
-
-  // Documents
   photoUrl        String?
   signatureUrl    String?
-  marksheet12thUrl String?
-  documentUrl     String?
 
-  // Academic Standing
+  // Academic Association
   sessionId       String
   session         AcademicSession @relation(fields: [sessionId], references: [id])
   courseId        String
@@ -247,24 +339,23 @@ model Student {
   currentSemester Int             @default(1)
   status          StudentStatus   @default(APPLIED)
 
-  // System & Timestamps
   createdAt       DateTime        @default(now())
   updatedAt       DateTime        @updatedAt
 
-  // Relational Ledgers
-  semesterRecords   StudentSemesterRecord[]
-  subjectSelections StudentSubjectEnrollment[]
-  feePayments       FeePayment[]
-  promotionHistory  PromotionHistory[]
+  // Relational Records
+  semesterRecords StudentSemesterRecord[]
+  enrollments     StudentSubjectEnrollment[]
+  promotionLogs   PromotionHistory[]
+  invoices        FeeInvoice[]
+  payments        FeePayment[]
   attendanceRecords AttendanceRecord[]
-  ciaEvaluations    ContinuousInternalAssessment[]
-  grievanceTickets  GrievanceTicket[]
+  ciaEvaluations  ContinuousInternalAssessment[]
+  examSeats       ExamSeat[]
+  examResults     ExamResult[]
+  grievanceTickets GrievanceTicket[]
 
-  // High-performance B-Tree Composite Indexes for queries over 50,000+ students
   @@index([sessionId, courseId, currentSemester, status])
-  @@index([currentSemester, status])
   @@index([collegeRollNo])
-  @@index([universityRegNo])
   @@index([applicationNo])
   @@index([phone])
   @@index([email])
@@ -272,10 +363,6 @@ model Student {
   @@index([createdAt])
   @@map("students")
 }
-
-// ----------------------------------------------------
-// SEMESTER PROGRESSION & ACADEMIC LEDGER
-// ----------------------------------------------------
 
 model StudentSemesterRecord {
   id                  String               @id @default(cuid())
@@ -320,10 +407,6 @@ model StudentSubjectEnrollment {
   @@map("student_subject_enrollments")
 }
 
-// ----------------------------------------------------
-// AUTOMATED PROMOTION LEDGER (IMMUTABLE AUDIT)
-// ----------------------------------------------------
-
 model PromotionHistory {
   id                String          @id @default(cuid())
   studentId         String
@@ -336,118 +419,19 @@ model PromotionHistory {
   triggerPaymentId  String?         @unique
   triggerPayment    FeePayment?     @relation(fields: [triggerPaymentId], references: [id], onDelete: SetNull)
   
-  promotedBy        String          @default("SYSTEM_AUTO_PAYMENT") // Admin user ID or "SYSTEM_AUTO_PAYMENT"
+  promotedBy        String          @default("SYSTEM_AUTO_PAYMENT")
   remarks           String?
   createdAt         DateTime        @default(now())
 
-  @@index([studentId, toSemester])
+  @@index([studentId, createdAt])
   @@index([academicSessionId, toSemester])
   @@index([createdAt])
   @@map("promotion_histories")
 }
 
-// ----------------------------------------------------
-// FEES & FINANCIAL TRANSACTIONS (ACID INTEGRITY)
-// ----------------------------------------------------
-
-model SemesterFeeConfig {
-  id           String   @id @default(cuid())
-  courseId     String
-  course       Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
-  semester     Int      // 1 to 8
-  casteCategory String  @default("ALL") // "ALL", "GEN", "OBC", "EBC", "SC", "ST", "GIRLS"
-  
-  tuitionFee   Decimal  @db.Decimal(10, 2)
-  admissionFee Decimal  @db.Decimal(10, 2)
-  examFee      Decimal  @db.Decimal(10, 2)
-  miscFee      Decimal  @db.Decimal(10, 2)
-  totalAmount  Decimal  @db.Decimal(10, 2)
-
-  isActive     Boolean  @default(true)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-
-  @@unique([courseId, semester, casteCategory])
-  @@index([courseId, semester, isActive])
-  @@map("semester_fee_configs")
-}
-
-model FeePayment {
-  id             String          @id @default(cuid())
-  receiptNo      String          @unique // e.g. "REC-2026-000492"
-  studentId      String
-  student        Student         @relation(fields: [studentId], references: [id], onDelete: Restrict)
-  
-  targetSemester Int             // 1 to 8 (The semester being paid for)
-  paymentType    PaymentType     @default(SEMESTER_PROMOTION)
-  title          String          // e.g. "Semester 2 Admission & Tuition Fee (CBCS 2026-2030)"
-  
-  amount         Decimal         @db.Decimal(10, 2)
-  paymentMethod  PaymentMethod   @default(ONLINE_GATEWAY)
-  status         PaymentStatus   @default(PENDING)
-  
-  transactionRef String?         @unique // Bank UTR or Gateway Transaction ID (Idempotency key)
-  gatewayOrderId String?         @unique // Razorpay / Cashfree Order ID
-  gatewaySignature String?       @db.Text
-  
-  isPromotionTriggered Boolean   @default(false)
-  paidAt         DateTime?
-  challanUrl     String?
-  notes          String?
-  createdAt      DateTime        @default(now())
-
-  promotion      PromotionHistory?
-
-  @@index([studentId, targetSemester, status])
-  @@index([targetSemester, status])
-  @@index([status, createdAt])
-  @@index([createdAt])
-  @@map("fee_payments")
-}
-
-// ----------------------------------------------------
-// NOTICES & ANNOUNCEMENTS
-// ----------------------------------------------------
-
-model Notice {
-  id          String   @id @default(cuid())
-  title       String
-  content     String   @db.Text
-  category    String   @default("General") // "Academic", "Admission", "Exam", "General"
-  isPublished Boolean  @default(true)
-  attachment  String?
-  publishedAt DateTime @default(now())
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  @@index([isPublished, publishedAt])
-  @@map("notices")
-}
-
-// ----------------------------------------------------
-// AUDIT LOGS (IMMUTABLE FORENSIC RECORDS)
-// ----------------------------------------------------
-
-model AuditLog {
-  id        String   @id @default(cuid())
-  userId    String?
-  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
-  action    String   // e.g. "AUTO_PROMOTION", "FEE_VERIFIED", "ROLL_NO_ASSIGNED"
-  entity    String   // e.g. "Student", "FeePayment"
-  entityId  String?
-  details   String?  @db.Text
-  ipAddress String?
-  timestamp DateTime @default(now())
-
-  @@index([userId, timestamp])
-  @@index([entity, entityId])
-  @@index([action, timestamp])
-  @@map("audit_logs")
-}
-
-// ====================================================
-// MODULE 2: FACULTY ADMIN & CONTINUOUS EVALUATION
-// ====================================================
+// =========================================================================
+// 5. FACULTY & TEACHING ASSIGNMENTS (faculty_subject)
+// =========================================================================
 
 model Faculty {
   id              String            @id @default(cuid())
@@ -471,14 +455,17 @@ model Faculty {
   updatedAt       DateTime          @updatedAt
 
   subjectAssignments FacultySubjectAssignment[]
+  attendanceSessions AttendanceSession[]
   attendanceRecords  AttendanceRecord[]
   ciaEvaluations     ContinuousInternalAssessment[]
+  evaluatedResults   ExamResult[]
 
   @@index([departmentId, isActive])
   @@index([employeeCode])
   @@map("faculty_profiles")
 }
 
+// Exact entity: faculty_subject (which faculty teaches which subject and semester)
 model FacultySubjectAssignment {
   id                String          @id @default(cuid())
   facultyId         String
@@ -498,27 +485,66 @@ model FacultySubjectAssignment {
   @@map("faculty_subject_assignments")
 }
 
-model AttendanceRecord {
-  id          String   @id @default(cuid())
-  facultyId   String
-  faculty     Faculty  @relation(fields: [facultyId], references: [id])
-  subjectId   String
-  subject     Subject  @relation(fields: [subjectId], references: [id])
-  studentId   String
-  student     Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
-  semester    Int
-  
-  date        DateTime @db.Date
-  status      String   // "PRESENT", "ABSENT", "LEAVE"
-  topicCovered String?
-  
-  createdAt   DateTime @default(now())
+// =========================================================================
+// 6. ATTENDANCE SESSIONS & ATTENDANCE RECORDS (attendance_session)
+// =========================================================================
 
+// Daily lecture session: stores date, subject, faculty, period slot, and room
+model AttendanceSession {
+  id                String            @id @default(cuid())
+  facultyId         String
+  faculty           Faculty           @relation(fields: [facultyId], references: [id])
+  subjectId         String
+  subject           Subject           @relation(fields: [subjectId], references: [id])
+  academicSessionId String
+  academicSession   AcademicSession   @relation(fields: [academicSessionId], references: [id])
+  semester          Int               // 1 to 8
+  
+  sessionDate       DateTime          @db.Date
+  timeSlot          String            // e.g. "10:00 AM - 11:00 AM", "Period 2"
+  roomNo            String?           // e.g. "Lecture Hall 102"
+  topicCovered      String?           @db.Text
+  totalPresent      Int               @default(0)
+  totalAbsent       Int               @default(0)
+  
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+
+  records           AttendanceRecord[]
+
+  @@index([subjectId, semester, sessionDate])
+  @@index([facultyId, sessionDate])
+  @@index([academicSessionId, sessionDate])
+  @@map("attendance_sessions")
+}
+
+// Individual student presence in an attendance session
+model AttendanceRecord {
+  id          String            @id @default(cuid())
+  sessionId   String
+  session     AttendanceSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  studentId   String
+  student     Student           @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  
+  // Redundant fields for rapid indexed reporting
+  facultyId   String
+  faculty     Faculty           @relation(fields: [facultyId], references: [id])
+  subjectId   String
+  subject     Subject           @relation(fields: [subjectId], references: [id])
+  semester    Int
+  date        DateTime          @db.Date
+  
+  status      AttendanceStatus  @default(PRESENT)
+  remarks     String?
+  createdAt   DateTime          @default(now())
+
+  @@unique([sessionId, studentId])
   @@index([studentId, subjectId, semester])
   @@index([facultyId, date])
   @@map("attendance_records")
 }
 
+// Continuous Internal Assessment (30 marks BRABU internal breakdown)
 model ContinuousInternalAssessment {
   id              String   @id @default(cuid())
   facultyId       String
@@ -529,7 +555,6 @@ model ContinuousInternalAssessment {
   student         Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
   semester        Int      // 1 to 8
   
-  // BRABU 30-mark CIA system breakdown
   midTermExam     Decimal  @default(0.0) @db.Decimal(5, 2) // Max 15 marks
   assignment      Decimal  @default(0.0) @db.Decimal(5, 2) // Max 10 marks
   attendanceScore Decimal  @default(0.0) @db.Decimal(5, 2) // Max 5 marks
@@ -545,9 +570,270 @@ model ContinuousInternalAssessment {
   @@map("continuous_internal_assessments")
 }
 
-// ====================================================
-// MODULE 3: GRIEVANCES & TICKETING
-// ====================================================
+// =========================================================================
+// 7. EXAMINATION, EXAM SUBJECTS, SEAT ALLOCATION & RESULTS
+// =========================================================================
+
+model Examination {
+  id                String          @id @default(cuid())
+  title             String          // e.g. "BRABU CBCS UG Semester 1 Examination 2026"
+  examType          ExamType        @default(SEMESTER_END)
+  courseId          String
+  course            Course          @relation(fields: [courseId], references: [id])
+  academicSessionId String
+  academicSession   AcademicSession @relation(fields: [academicSessionId], references: [id])
+  semester          Int             // 1 to 8
+  
+  startDate         DateTime
+  endDate           DateTime
+  status            ExamStatus      @default(SCHEDULED)
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+
+  examSubjects      ExamSubject[]
+
+  @@index([courseId, semester, status])
+  @@index([academicSessionId, semester])
+  @@map("examinations")
+}
+
+// Exam schedule per subject with marks boundaries
+model ExamSubject {
+  id            String       @id @default(cuid())
+  examId        String
+  exam          Examination  @relation(fields: [examId], references: [id], onDelete: Cascade)
+  subjectId     String
+  subject       Subject      @relation(fields: [subjectId], references: [id])
+  
+  examDate      DateTime     @db.Date
+  startTime     String       // e.g. "10:00 AM"
+  endTime       String       // e.g. "01:00 PM"
+  maxTheory     Decimal      @default(70.0) @db.Decimal(5, 2)
+  maxPractical  Decimal      @default(0.0) @db.Decimal(5, 2)
+  passMarks     Decimal      @default(30.0) @db.Decimal(5, 2)
+  roomNo        String?
+
+  seats         ExamSeat[]
+  results       ExamResult[]
+
+  @@unique([examId, subjectId])
+  @@index([examId, examDate])
+  @@map("exam_subjects")
+}
+
+// Seat allocation & hall tickets
+model ExamSeat {
+  id            String      @id @default(cuid())
+  examSubjectId String
+  examSubject   ExamSubject @relation(fields: [examSubjectId], references: [id], onDelete: Cascade)
+  studentId     String
+  student       Student     @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  
+  seatNo        String      // e.g. "R102-S14"
+  roomNo        String      // e.g. "Room 102"
+  hallTicketNo  String?     // e.g. "HT-2026-0042"
+  createdAt     DateTime    @default(now())
+
+  @@unique([examSubjectId, studentId])
+  @@unique([examSubjectId, seatNo, roomNo])
+  @@index([studentId])
+  @@map("exam_seats")
+}
+
+// Subject-wise and Exam-wise Marks & Results
+model ExamResult {
+  id              String       @id @default(cuid())
+  examSubjectId   String
+  examSubject     ExamSubject  @relation(fields: [examSubjectId], references: [id], onDelete: Cascade)
+  studentId       String
+  student         Student      @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  
+  theoryMarks     Decimal      @default(0.0) @db.Decimal(5, 2)
+  practicalMarks  Decimal      @default(0.0) @db.Decimal(5, 2)
+  totalMarks      Decimal      @default(0.0) @db.Decimal(5, 2)
+  grade           ResultGrade  @default(P)
+  gradePoint      Decimal      @default(0.0) @db.Decimal(4, 2)
+  isPassed        Boolean      @default(true)
+  
+  evaluatedById   String?
+  evaluatedBy     Faculty?     @relation(fields: [evaluatedById], references: [id], onDelete: SetNull)
+  remarks         String?
+  publishedAt     DateTime?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  @@unique([examSubjectId, studentId])
+  @@index([studentId])
+  @@index([isPassed, grade])
+  @@map("exam_results")
+}
+
+// =========================================================================
+// 8. FEES: FEE STRUCTURE, INVOICES & INDIVIDUAL PAYMENT TRANSACTIONS
+// =========================================================================
+
+// 1. Fee Structure per course, semester, and caste category
+model SemesterFeeConfig {
+  id            String      @id @default(cuid())
+  courseId      String
+  course        Course      @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  semester      Int         // 1 to 8
+  casteCategory String      @default("ALL") // "ALL", "GEN", "OBC", "EBC", "SC", "ST", "GIRLS"
+  
+  tuitionFee    Decimal     @db.Decimal(10, 2)
+  admissionFee  Decimal     @db.Decimal(10, 2)
+  examFee       Decimal     @db.Decimal(10, 2)
+  miscFee       Decimal     @db.Decimal(10, 2)
+  totalAmount   Decimal     @db.Decimal(10, 2)
+
+  isActive      Boolean     @default(true)
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  invoices      FeeInvoice[]
+
+  @@unique([courseId, semester, casteCategory])
+  @@index([courseId, semester, isActive])
+  @@map("semester_fee_configs")
+}
+
+// 2. Fee Invoice: Generated per student per semester
+model FeeInvoice {
+  id                String            @id @default(cuid())
+  invoiceNo         String            @unique // e.g. "INV-2026-00104"
+  studentId         String
+  student           Student           @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  academicSessionId String
+  academicSession   AcademicSession   @relation(fields: [academicSessionId], references: [id])
+  semester          Int               // 1 to 8
+  feeConfigId       String?
+  feeConfig         SemesterFeeConfig? @relation(fields: [feeConfigId], references: [id], onDelete: SetNull)
+  
+  totalAmount       Decimal           @db.Decimal(10, 2)
+  paidAmount        Decimal           @default(0.0) @db.Decimal(10, 2)
+  dueAmount         Decimal           @db.Decimal(10, 2)
+  dueDate           DateTime
+  status            InvoiceStatus     @default(UNPAID)
+  
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+
+  payments          FeePayment[]
+
+  @@unique([studentId, semester, academicSessionId])
+  @@index([status, dueDate])
+  @@index([studentId, status])
+  @@map("fee_invoices")
+}
+
+// 3. Fee Payment: Stores EVERY INDIVIDUAL payment transaction (Audit-safe, never overwritten)
+model FeePayment {
+  id             String          @id @default(cuid())
+  receiptNo      String          @unique // e.g. "REC-2026-000492"
+  invoiceId      String?
+  invoice        FeeInvoice?     @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
+  studentId      String
+  student        Student         @relation(fields: [studentId], references: [id], onDelete: Restrict)
+  
+  targetSemester Int             // 1 to 8
+  paymentType    PaymentType     @default(SEMESTER_PROMOTION)
+  title          String          // e.g. "Semester 1 Admission & Tuition Fee"
+  
+  amount         Decimal         @db.Decimal(10, 2)
+  paymentMethod  PaymentMethod   @default(ONLINE_GATEWAY)
+  status         PaymentStatus   @default(PENDING)
+  
+  transactionRef String?         @unique // Bank UTR or Gateway Transaction ID
+  gatewayOrderId String?         @unique // Razorpay / Cashfree Order ID
+  gatewaySignature String?       @db.Text
+  
+  isPromotionTriggered Boolean   @default(false)
+  paidAt         DateTime?
+  challanUrl     String?
+  notes          String?
+  createdAt      DateTime        @default(now())
+
+  promotion      PromotionHistory?
+
+  @@index([studentId, targetSemester, status])
+  @@index([targetSemester, status])
+  @@index([status, createdAt])
+  @@index([createdAt])
+  @@map("fee_payments")
+}
+
+// =========================================================================
+// 9. NOTIFICATIONS (INDIVIDUAL & GROUP) & NOTICES
+// =========================================================================
+
+model Notification {
+  id          String                 @id @default(cuid())
+  title       String
+  message     String                 @db.Text
+  targetType  NotificationTargetType @default(ALL)
+  targetRole  Role?                  // SUPER_ADMIN, FACULTY, STUDENT
+  
+  // Individual recipient (optional)
+  recipientId String?
+  recipient   User?                  @relation("ReceivedNotifications", fields: [recipientId], references: [id], onDelete: Cascade)
+  
+  // Sender attribution
+  senderId    String?
+  sender      User?                  @relation("SentNotifications", fields: [senderId], references: [id], onDelete: SetNull)
+  
+  isRead      Boolean                @default(false)
+  readAt      DateTime?
+  createdAt   DateTime               @default(now())
+
+  @@index([recipientId, isRead])
+  @@index([targetType, targetRole])
+  @@index([createdAt])
+  @@map("notifications")
+}
+
+model Notice {
+  id          String   @id @default(cuid())
+  title       String
+  content     String   @db.Text
+  category    String   @default("General") // "Academic", "Admission", "Exam", "General"
+  isPublished Boolean  @default(true)
+  attachment  String?
+  publishedAt DateTime @default(now())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([isPublished, publishedAt])
+  @@map("notices")
+}
+
+// =========================================================================
+// 10. AUDIT LOGS (FORENSIC & COMPLIANCE LOGGING)
+// =========================================================================
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  
+  action    String   // e.g. "USER_CREATE", "RECORD_UPDATE", "AUTO_PROMOTION", "FEE_PAID", "MARKS_ENTERED"
+  entity    String   // e.g. "Student", "Faculty", "FeePayment", "ExamResult", "AttendanceSession"
+  entityId  String?
+  oldValues String?  @db.Text // JSON snapshot before change
+  newValues String?  @db.Text // JSON snapshot after change
+  details   String?  @db.Text
+  ipAddress String?
+  userAgent String?
+  timestamp DateTime @default(now())
+
+  @@index([userId, timestamp])
+  @@index([entity, entityId])
+  @@index([action, timestamp])
+  @@map("audit_logs")
+}
+
+// =========================================================================
+// 11. GRIEVANCES & TICKETING
+// =========================================================================
 
 model GrievanceTicket {
   id            String    @id @default(cuid())
