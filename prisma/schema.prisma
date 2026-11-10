@@ -227,6 +227,7 @@ model AcademicSession {
   attendanceSessions AttendanceSession[]
   examinations       Examination[]
   feeInvoices        FeeInvoice[]
+  registrationWindows RegistrationWindow[]
 
   @@index([isCurrent])
   @@map("academic_sessions")
@@ -262,6 +263,7 @@ model Course {
   subjects       Subject[]
   feeConfigs     SemesterFeeConfig[]
   examinations   Examination[]
+  registrationWindows RegistrationWindow[]
 
   @@index([departmentId])
   @@map("courses")
@@ -303,9 +305,14 @@ model Student {
 
   // Registration & Institutional Identifiers
   applicationNo   String          @unique // e.g. "MKR-2026-0001"
+  registrationCode String?        @unique // Persistent Code generated in Sem 1 (e.g. MKR-REG-2026-0001) for Sem 2..8 progression
   collegeRollNo   String?         @unique // e.g. "26/BA/0042"
   universityRegNo String?         @unique // Official BRABU Registration Number
   universityAppNo String?                 // BRABU Portal Application Number
+  
+  // Registration Timeline & Overdue Retention (30-day grace period before purge)
+  isOverdue          Boolean      @default(false)
+  markedForDeletionAt DateTime?
 
   // Personal Information
   fullName        String
@@ -427,6 +434,26 @@ model PromotionHistory {
   @@index([academicSessionId, toSemester])
   @@index([createdAt])
   @@map("promotion_histories")
+}
+
+// Super Admin Configurable Semester Registration Time Limits (Start/End Dates + 30-Day Retention)
+model RegistrationWindow {
+  id                String          @id @default(cuid())
+  academicSessionId String
+  academicSession   AcademicSession @relation(fields: [academicSessionId], references: [id])
+  courseId          String
+  course            Course          @relation(fields: [courseId], references: [id])
+  semester          Int             // 1 to 8
+  startDate         DateTime
+  endDate           DateTime
+  graceDays         Int             @default(30) // 30-day grace period before purge
+  isActive          Boolean         @default(true)
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+
+  @@unique([courseId, semester, academicSessionId])
+  @@index([semester, isActive])
+  @@map("registration_windows")
 }
 
 // =========================================================================
