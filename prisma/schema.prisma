@@ -19,10 +19,12 @@ datasource db {
 enum Role {
   SUPER_ADMIN
   PRINCIPAL
-  ACCOUNTANT
+  FACULTY
   TEACHER
+  ACCOUNTANT
   CLERK
   STUDENT
+  PARENT
 }
 
 enum StudentStatus {
@@ -94,6 +96,7 @@ model User {
   updatedAt    DateTime    @updatedAt
 
   student      Student?
+  faculty      Faculty?
   auditLogs    AuditLog[]
 
   @@index([role, isActive])
@@ -105,32 +108,34 @@ model User {
 // ----------------------------------------------------
 
 model AcademicSession {
-  id              String            @id @default(cuid())
-  name            String            @unique // e.g., "2026-2030", "2025-2029"
-  startYear       Int               // 2026
-  endYear         Int               // 2030
-  isCurrent       Boolean           @default(false)
-  createdAt       DateTime          @default(now())
-  updatedAt       DateTime          @updatedAt
+  id                 String                     @id @default(cuid())
+  name               String                     @unique // e.g., "2026-2030", "2025-2029"
+  startYear          Int                        // 2026
+  endYear            Int                        // 2030
+  isCurrent          Boolean                    @default(false)
+  createdAt          DateTime                   @default(now())
+  updatedAt          DateTime                   @updatedAt
 
-  students        Student[]
-  semesterRecords StudentSemesterRecord[]
-  promotionLogs   PromotionHistory[]
+  students           Student[]
+  semesterRecords    StudentSemesterRecord[]
+  promotionLogs      PromotionHistory[]
+  facultyAssignments FacultySubjectAssignment[]
 
   @@index([isCurrent])
   @@map("academic_sessions")
 }
 
 model Department {
-  id          String    @id @default(cuid())
-  name        String    @unique // e.g. "History", "Political Science", "Commerce", "Economics"
-  code        String    @unique // e.g. "HIST", "POLS", "COMM", "ECON"
-  facultyType String    // "Social Science", "Humanities", "Commerce", "Science"
-  headOfDept  String?
-  createdAt   DateTime  @default(now())
+  id             String    @id @default(cuid())
+  name           String    @unique // e.g. "History", "Political Science", "Commerce", "Economics"
+  code           String    @unique // e.g. "HIST", "POLS", "COMM", "ECON"
+  facultyType    String    // "Social Science", "Humanities", "Commerce", "Science"
+  headOfDept     String?
+  createdAt      DateTime  @default(now())
 
-  courses     Course[]
-  subjects    Subject[]
+  courses        Course[]
+  subjects       Subject[]
+  facultyMembers Faculty[]
 
   @@index([facultyType])
   @@map("departments")
@@ -155,19 +160,22 @@ model Course {
 }
 
 model Subject {
-  id           String          @id @default(cuid())
-  code         String          @unique // e.g. "HIST-MJC-1", "POLS-MIC-2"
-  name         String          // e.g. "History of India - I", "Indian Political Thought"
-  semester     Int             // Semester 1 to 8
-  credits      Int             @default(4)
-  category     SubjectCategory
-  courseId     String
-  course       Course          @relation(fields: [courseId], references: [id])
-  departmentId String
-  department   Department      @relation(fields: [departmentId], references: [id])
-  createdAt    DateTime        @default(now())
+  id                 String                         @id @default(cuid())
+  code               String                         @unique // e.g. "HIST-MJC-1", "POLS-MIC-2"
+  name               String                         // e.g. "History of India - I", "Indian Political Thought"
+  semester           Int                            // Semester 1 to 8
+  credits            Int                            @default(4)
+  category           SubjectCategory
+  courseId           String
+  course             Course                         @relation(fields: [courseId], references: [id])
+  departmentId       String
+  department         Department                     @relation(fields: [departmentId], references: [id])
+  createdAt          DateTime                       @default(now())
 
-  enrollments  StudentSubjectEnrollment[]
+  enrollments        StudentSubjectEnrollment[]
+  facultyAssignments FacultySubjectAssignment[]
+  attendanceRecords  AttendanceRecord[]
+  ciaEvaluations     ContinuousInternalAssessment[]
 
   @@index([courseId, semester, category])
   @@index([departmentId])
@@ -248,6 +256,9 @@ model Student {
   subjectSelections StudentSubjectEnrollment[]
   feePayments       FeePayment[]
   promotionHistory  PromotionHistory[]
+  attendanceRecords AttendanceRecord[]
+  ciaEvaluations    ContinuousInternalAssessment[]
+  grievanceTickets  GrievanceTicket[]
 
   // High-performance B-Tree Composite Indexes for queries over 50,000+ students
   @@index([sessionId, courseId, currentSemester, status])
@@ -432,4 +443,134 @@ model AuditLog {
   @@index([entity, entityId])
   @@index([action, timestamp])
   @@map("audit_logs")
+}
+
+// ====================================================
+// MODULE 2: FACULTY ADMIN & CONTINUOUS EVALUATION
+// ====================================================
+
+model Faculty {
+  id              String            @id @default(cuid())
+  userId          String?           @unique
+  user            User?             @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  employeeCode    String            @unique // e.g. "FAC-HIST-001"
+  fullName        String
+  designation     String            // "Professor", "Associate Professor", "Assistant Professor", "HOD"
+  departmentId    String
+  department      Department        @relation(fields: [departmentId], references: [id])
+  
+  email           String            @unique
+  phone           String            @unique
+  qualification   String?           // e.g. "Ph.D, UGC-NET"
+  specialization  String?
+  joiningDate     DateTime?
+  isActive        Boolean           @default(true)
+  
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  subjectAssignments FacultySubjectAssignment[]
+  attendanceRecords  AttendanceRecord[]
+  ciaEvaluations     ContinuousInternalAssessment[]
+
+  @@index([departmentId, isActive])
+  @@index([employeeCode])
+  @@map("faculty_profiles")
+}
+
+model FacultySubjectAssignment {
+  id                String          @id @default(cuid())
+  facultyId         String
+  faculty           Faculty         @relation(fields: [facultyId], references: [id], onDelete: Cascade)
+  subjectId         String
+  subject           Subject         @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  academicSessionId String
+  academicSession   AcademicSession @relation(fields: [academicSessionId], references: [id])
+  semester          Int             // 1 to 8
+  
+  isPrimaryTeacher  Boolean         @default(true)
+  createdAt         DateTime        @default(now())
+
+  @@unique([facultyId, subjectId, academicSessionId, semester])
+  @@index([facultyId, academicSessionId])
+  @@index([subjectId, semester])
+  @@map("faculty_subject_assignments")
+}
+
+model AttendanceRecord {
+  id          String   @id @default(cuid())
+  facultyId   String
+  faculty     Faculty  @relation(fields: [facultyId], references: [id])
+  subjectId   String
+  subject     Subject  @relation(fields: [subjectId], references: [id])
+  studentId   String
+  student     Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  semester    Int
+  
+  date        DateTime @db.Date
+  status      String   // "PRESENT", "ABSENT", "LEAVE"
+  topicCovered String?
+  
+  createdAt   DateTime @default(now())
+
+  @@index([studentId, subjectId, semester])
+  @@index([facultyId, date])
+  @@map("attendance_records")
+}
+
+model ContinuousInternalAssessment {
+  id              String   @id @default(cuid())
+  facultyId       String
+  faculty         Faculty  @relation(fields: [facultyId], references: [id])
+  subjectId       String
+  subject         Subject  @relation(fields: [subjectId], references: [id])
+  studentId       String
+  student         Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  semester        Int      // 1 to 8
+  
+  // BRABU 30-mark CIA system breakdown
+  midTermExam     Decimal  @default(0.0) @db.Decimal(5, 2) // Max 15 marks
+  assignment      Decimal  @default(0.0) @db.Decimal(5, 2) // Max 10 marks
+  attendanceScore Decimal  @default(0.0) @db.Decimal(5, 2) // Max 5 marks
+  totalCiaScore   Decimal  @default(0.0) @db.Decimal(5, 2) // Max 30 marks
+  
+  isFinalized     Boolean  @default(false)
+  evaluationDate  DateTime @default(now())
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([studentId, subjectId, semester])
+  @@index([facultyId, subjectId, semester])
+  @@map("continuous_internal_assessments")
+}
+
+// ====================================================
+// MODULE 3: GRIEVANCES & TICKETING
+// ====================================================
+
+model GrievanceTicket {
+  id            String    @id @default(cuid())
+  ticketNo      String    @unique // e.g. "TKT-2026-0042"
+  studentId     String?
+  student       Student?  @relation(fields: [studentId], references: [id], onDelete: SetNull)
+  
+  submittedBy   String    // "STUDENT", "PARENT", "PUBLIC"
+  name          String
+  email         String
+  phone         String
+  category      String    // "Admissions", "Examination", "Fees", "Hostel", "Staff Conduct", "Scholarship"
+  subject       String
+  description   String    @db.Text
+  status        String    @default("PENDING") // "PENDING", "IN_REVIEW", "RESOLVED", "REJECTED"
+  adminRemarks  String?   @db.Text
+  
+  resolvedAt    DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([ticketNo])
+  @@index([status, category])
+  @@index([studentId])
+  @@map("grievance_tickets")
 }

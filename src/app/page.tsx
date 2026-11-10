@@ -42,6 +42,23 @@ export default function Home() {
             <p className="text-xs sm:text-sm text-slate-600 font-medium mt-1">
               Enterprise Resource Planning & Academic Management Portal • Sitamarhi, Bihar
             </p>
+            <div className="mt-4 flex flex-wrap items-center justify-center gap-3">
+              <Link
+                href="/login"
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#002B5C] hover:bg-[#001836] text-white text-xs sm:text-sm font-bold shadow-md transition-all duration-150 hover:shadow-lg"
+              >
+                <ShieldCheck className="w-4 h-4 text-[#D4AF37]" />
+                <span>Unified ERP Login</span>
+                <ArrowRight className="w-4 h-4" />
+              </Link>
+              <Link
+                href="/admission"
+                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white hover:bg-slate-100 border border-slate-300 text-slate-800 text-xs sm:text-sm font-semibold transition"
+              >
+                <GraduationCap className="w-4 h-4 text-[#800000]" />
+                <span>Online Admission 2026</span>
+              </Link>
+            </div>
           </div>
 
           {/* THE 3 CORE ERP MODULES */}
