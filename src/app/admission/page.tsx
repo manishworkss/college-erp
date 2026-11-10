@@ -553,16 +553,16 @@ export default function OnlineAdmissionPage() {
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   <div>
                     <label className="block text-xs font-bold text-slate-700 mb-1">
-                      Faculty <span className="text-rose-600">*</span>
+                      Academic Program <span className="text-rose-600">*</span>
                     </label>
                     <select
                       value={form.faculty}
                       onChange={(e) => handleFacultyChange(e.target.value)}
-                      className="w-full text-sm px-3.5 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-[#800000] focus:outline-none bg-white font-bold"
+                      className="w-full text-sm px-3.5 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-[#800000] focus:outline-none bg-white font-bold text-[#800000]"
                     >
-                      <option value="Social Science">Social Science</option>
-                      <option value="Humanities">Humanities</option>
-                      <option value="Commerce">Commerce</option>
+                      <option value="Social Science">Bachelor&apos;s of Arts (BA) – Social Science</option>
+                      <option value="Humanities">Bachelor&apos;s of Arts (B.A) – Humanities</option>
+                      <option value="Commerce">Bachelor&apos;s of Commerce (B.COM)</option>
                     </select>
                   </div>
 
