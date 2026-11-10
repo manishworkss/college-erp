@@ -18,7 +18,7 @@ export default function CollegeLogo({
       style={{ width: size, height: size }}
     >
       <img
-        src="/logo.avif"
+        src="/assets/logo/mkr-dr-grd-college-logo.webp"
         alt={alt}
         width={size}
         height={size}

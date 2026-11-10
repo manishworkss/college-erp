@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -11,6 +11,37 @@ type UserRole = 'SUPER_ADMIN' | 'FACULTY' | 'STUDENT';
 
 export default function LoginPage() {
   const router = useRouter();
+
+  // 4 Showcase Images for ERP Panel (High-Res WebP with SEO Descriptors)
+  const erpSlides = [
+    {
+      src: '/assets/erp-panel/mkr-college-sitamarhi-main-campus-gate.webp',
+      alt: 'M.K.R. Dr. G.R.D. College Sitamarhi Main Campus Gate & Entrance',
+    },
+    {
+      src: '/assets/erp-panel/mkr-dr-grd-college-academic-administrative-block.webp',
+      alt: 'Academic and Administrative Block at MKR Dr GRD College Bihar',
+    },
+    {
+      src: '/assets/erp-panel/mkr-college-punauradham-degree-infrastructure.webp',
+      alt: 'Degree College Campus Infrastructure at Punaura Dham Sitamarhi',
+    },
+    {
+      src: '/assets/erp-panel/mkr-college-student-central-learning-center.webp',
+      alt: 'Central Learning & Student Facilities at MKR College BRABU Affiliated',
+    },
+  ];
+
+  const [currentSlide, setCurrentSlide] = useState(0);
+
+  // Auto-slide every 3 seconds
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentSlide((prev) => (prev + 1) % erpSlides.length);
+    }, 3000);
+
+    return () => clearInterval(timer);
+  }, [erpSlides.length]);
 
   const [role, setRole] = useState<UserRole>('SUPER_ADMIN');
   const [username, setUsername] = useState('');
@@ -109,25 +140,49 @@ export default function LoginPage() {
     <div className="h-screen w-screen overflow-hidden flex flex-col lg:flex-row bg-white">
       
       {/* ========================================================= */}
-      {/* LEFT SIDE: Full-Page Campus Photo (Zero Text Overlays)    */}
+      {/* LEFT SIDE: Full-Page Slideshow (3 Sec Interval, Pure WebP)*/}
       {/* ========================================================= */}
-      <div className="hidden lg:block lg:w-[62%] xl:w-[65%] h-full relative bg-slate-900 overflow-hidden">
-        <Image
-          src="/campus.jpg"
-          alt="MKR Dr. GRD College Campus"
-          fill
-          priority
-          sizes="(max-width: 1024px) 100vw, 65vw"
-          className="object-cover object-center w-full h-full"
-        />
+      <div className="hidden lg:block lg:w-[62%] xl:w-[65%] h-full relative bg-slate-950 overflow-hidden select-none">
+        {erpSlides.map((slide, idx) => (
+          <div
+            key={slide.src}
+            className={`absolute inset-0 transition-opacity duration-1000 ease-in-out ${
+              idx === currentSlide ? 'opacity-100 z-10' : 'opacity-0 z-0 pointer-events-none'
+            }`}
+          >
+            <Image
+              src={slide.src}
+              alt={slide.alt}
+              fill
+              priority={idx === 0}
+              sizes="(max-width: 1024px) 100vw, 65vw"
+              className="object-cover object-center w-full h-full"
+            />
+          </div>
+        ))}
+
         {/* Floating subtle home link on top left */}
         <Link
           href="/"
-          className="absolute top-4 left-4 z-10 inline-flex items-center gap-1.5 px-3 py-1.5 bg-black/40 hover:bg-black/60 text-white backdrop-blur-md rounded-lg text-xs font-semibold transition"
+          className="absolute top-4 left-4 z-20 inline-flex items-center gap-1.5 px-3 py-1.5 bg-black/40 hover:bg-black/60 text-white backdrop-blur-md rounded-lg text-xs font-semibold transition"
         >
           <ArrowLeft className="w-3.5 h-3.5" />
           <span>Home</span>
         </Link>
+
+        {/* Minimalist slide indicator pills at bottom */}
+        <div className="absolute bottom-5 left-1/2 -translate-x-1/2 z-20 flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/40 backdrop-blur-md">
+          {erpSlides.map((_, idx) => (
+            <button
+              key={idx}
+              onClick={() => setCurrentSlide(idx)}
+              className={`h-1.5 rounded-full transition-all duration-300 ${
+                idx === currentSlide ? 'w-6 bg-white shadow-sm' : 'w-2 bg-white/40 hover:bg-white/80'
+              }`}
+              aria-label={`Go to slide ${idx + 1}`}
+            />
+          ))}
+        </div>
       </div>
 
       {/* ========================================================= */}
