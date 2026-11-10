@@ -15,7 +15,7 @@ export default function LoginPage() {
   // 2 Official Showcase Images - called directly as-is with original extensions
   const erpSlides = [
     {
-      src: '/assets/erp-panel/image-1.jpg',
+      src: '/assets/erp-panel/image-1.png',
       alt: 'M.K.R. Dr. G.R.D. College Main Campus Building',
     },
     {
