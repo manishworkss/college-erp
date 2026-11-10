@@ -12,23 +12,15 @@ type UserRole = 'SUPER_ADMIN' | 'FACULTY' | 'STUDENT';
 export default function LoginPage() {
   const router = useRouter();
 
-  // 4 Showcase Images for ERP Panel (High-Res WebP with SEO Descriptors)
+  // 2 Official Showcase Images for ERP Panel (Exact 660x555 WebP)
   const erpSlides = [
     {
-      src: '/assets/erp-panel/mkr-college-sitamarhi-main-campus-gate.webp',
-      alt: 'M.K.R. Dr. G.R.D. College Sitamarhi Main Campus Gate & Entrance',
+      src: '/assets/erp-panel/mkr-college-sitamarhi-main-campus-building.webp',
+      alt: 'M.K.R. Dr. G.R.D. College Main Campus Building, Punaura Dham, Sitamarhi',
     },
     {
-      src: '/assets/erp-panel/mkr-dr-grd-college-academic-administrative-block.webp',
-      alt: 'Academic and Administrative Block at MKR Dr GRD College Bihar',
-    },
-    {
-      src: '/assets/erp-panel/mkr-college-punauradham-degree-infrastructure.webp',
-      alt: 'Degree College Campus Infrastructure at Punaura Dham Sitamarhi',
-    },
-    {
-      src: '/assets/erp-panel/mkr-college-student-central-learning-center.webp',
-      alt: 'Central Learning & Student Facilities at MKR College BRABU Affiliated',
+      src: '/assets/erp-panel/mkr-college-leadership-award-ceremony.webp',
+      alt: 'M.K.R. Dr. G.R.D. College Institutional Leadership Award Ceremony',
     },
   ];
 

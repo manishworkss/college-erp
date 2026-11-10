@@ -27,45 +27,30 @@ async function convertAssets() {
     .webp({ quality: 100, effort: 6 })
     .toFile(path.join(assetsLogoDir, 'mkr-college-emblem.webp'));
 
-  // 2. Convert the 4 ERP Panel Showcase Images with SEO Names
+  // 2. Convert the 2 Official ERP Showcase Images (660x555)
   const erpImages = [
     {
-      src: 'download-1.avif',
-      dest: 'mkr-college-sitamarhi-main-campus-gate.webp',
-      alt: 'M.K.R. Dr. G.R.D. College Sitamarhi Main Campus Gate & Entrance',
-      title: 'College Main Campus Gate'
+      src: path.join(assetsErpDir, 'image-1.jpg'),
+      dest: 'mkr-college-sitamarhi-main-campus-building.webp',
+      alt: 'M.K.R. Dr. G.R.D. College Main Campus Building, Punaura Dham, Sitamarhi',
     },
     {
-      src: 'download-2.avif',
-      dest: 'mkr-dr-grd-college-academic-administrative-block.webp',
-      alt: 'Academic and Administrative Block at MKR Dr GRD College Bihar',
-      title: 'Academic & Administrative Block'
-    },
-    {
-      src: 'download-3.avif',
-      dest: 'mkr-college-punauradham-degree-infrastructure.webp',
-      alt: 'Degree College Campus Infrastructure at Punaura Dham Sitamarhi',
-      title: 'Degree College Campus Infrastructure'
-    },
-    {
-      src: 'download4.avif',
-      dest: 'mkr-college-student-central-learning-center.webp',
-      alt: 'Central Learning & Student Facilities at MKR College BRABU Affiliated',
-      title: 'Central Student Learning Facilities'
+      src: path.join(assetsErpDir, 'image-2.jpg'),
+      dest: 'mkr-college-leadership-award-ceremony.webp',
+      alt: 'M.K.R. Dr. G.R.D. College Institutional Leadership Award Ceremony',
     }
   ];
 
   for (const img of erpImages) {
-    const srcPath = path.join(__dirname, '..', img.src);
-    const destPath = path.join(assetsErpDir, img.dest);
-
-    await sharp(srcPath)
-      .resize(660, 555, { fit: 'cover', position: 'center' })
-      .sharpen()
-      .webp({ quality: 96, effort: 6 })
-      .toFile(destPath);
-    
-    console.log(`Converted [${img.src}] -> [${img.dest}]`);
+    if (fs.existsSync(img.src)) {
+      const destPath = path.join(assetsErpDir, img.dest);
+      await sharp(img.src)
+        .resize(660, 555, { fit: 'cover', position: 'center' })
+        .sharpen()
+        .webp({ quality: 98, effort: 6 })
+        .toFile(destPath);
+      console.log(`Converted [${path.basename(img.src)}] -> [${img.dest}]`);
+    }
   }
 
   console.log('\nAll assets converted successfully to WebP with high resolution!');
