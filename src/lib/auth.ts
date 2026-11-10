@@ -48,3 +48,4 @@ export function verifyAuthToken(token: string): TokenPayload | null {
     return null;
   }
 }
+
