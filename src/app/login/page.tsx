@@ -26,11 +26,11 @@ export default function LoginPage() {
 
   const [currentSlide, setCurrentSlide] = useState(0);
 
-  // Auto-slide every 3 seconds
+  // Auto-slide every 7 seconds
   useEffect(() => {
     const timer = setInterval(() => {
       setCurrentSlide((prev) => (prev + 1) % erpSlides.length);
-    }, 3000);
+    }, 7000);
 
     return () => clearInterval(timer);
   }, [erpSlides.length]);
@@ -152,20 +152,6 @@ export default function LoginPage() {
             />
           </div>
         ))}
-
-        {/* Minimalist slide indicator pills at bottom */}
-        <div className="absolute bottom-5 left-1/2 -translate-x-1/2 z-20 flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/40 backdrop-blur-md">
-          {erpSlides.map((_, idx) => (
-            <button
-              key={idx}
-              onClick={() => setCurrentSlide(idx)}
-              className={`h-1.5 rounded-full transition-all duration-300 ${
-                idx === currentSlide ? 'w-6 bg-white shadow-sm' : 'w-2 bg-white/40 hover:bg-white/80'
-              }`}
-              aria-label={`Go to slide ${idx + 1}`}
-            />
-          ))}
-        </div>
       </div>
 
       {/* ========================================================= */}
