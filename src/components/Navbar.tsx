@@ -12,7 +12,7 @@ export default function Navbar() {
 
   const navLinks = [
     { name: 'Online Admission Form', href: '/admission', icon: GraduationCap },
-    { name: 'Complain / Grievance', href: '/complaint', icon: AlertCircle },
+    { name: 'Complain Form', href: '/complaint', icon: AlertCircle },
   ];
 
   const isActive = (path: string) => {
