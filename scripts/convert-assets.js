@@ -60,7 +60,9 @@ async function convertAssets() {
     const destPath = path.join(assetsErpDir, img.dest);
 
     await sharp(srcPath)
-      .webp({ quality: 92, effort: 6 })
+      .resize(660, 555, { fit: 'cover', position: 'center' })
+      .sharpen()
+      .webp({ quality: 96, effort: 6 })
       .toFile(destPath);
     
     console.log(`Converted [${img.src}] -> [${img.dest}]`);
@@ -73,3 +75,4 @@ convertAssets().catch((err) => {
   console.error('Conversion failed:', err);
   process.exit(1);
 });
+
