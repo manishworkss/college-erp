@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import CollegeLogo from '@/components/CollegeLogo';
 import { 
@@ -40,58 +40,29 @@ export default function AdminStudentsPage() {
   const [selectedStatus, setSelectedStatus] = useState<string>('all');
   const [isPromoting, setIsPromoting] = useState<string | null>(null);
   const [promotionNotice, setPromotionNotice] = useState<string | null>(null);
+  const [students, setStudents] = useState<StudentItem[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  // Mock demonstration data reflecting enterprise BRABU CBCS schema
-  const [students, setStudents] = useState<StudentItem[]>([
-    {
-      id: 'std_01',
-      applicationNo: 'MKR-2026-00102',
-      collegeRollNo: '26/BA/0042',
-      universityRegNo: '2410298371',
-      fullName: 'Aarav Kumar',
-      phone: '9876543210',
-      email: 'aarav.kumar@gmail.com',
-      category: 'OBC',
-      gender: 'Male',
-      currentSemester: 1,
-      status: 'ADMITTED',
-      sessionName: '2026-2030',
-      courseCode: 'BA',
-      courseName: 'B.A. (Hons) History',
-    },
-    {
-      id: 'std_02',
-      applicationNo: 'MKR-2026-00145',
-      collegeRollNo: '26/BCOM/0019',
-      universityRegNo: '2410298389',
-      fullName: 'Priya Kumari',
-      phone: '9876543211',
-      email: 'priya.k@gmail.com',
-      category: 'GEN',
-      gender: 'Female',
-      currentSemester: 2,
-      status: 'ADMITTED',
-      sessionName: '2025-2029',
-      courseCode: 'BCOM',
-      courseName: 'B.Com. (Hons) Accounts',
-    },
-    {
-      id: 'std_03',
-      applicationNo: 'MKR-2026-00204',
-      collegeRollNo: '26/BA/0088',
-      universityRegNo: '2410298412',
-      fullName: 'Ravi Shankar Ray',
-      phone: '9876543212',
-      email: 'ravi.ray@gmail.com',
-      category: 'EBC',
-      gender: 'Male',
-      currentSemester: 1,
-      status: 'DOCUMENT_VERIFIED',
-      sessionName: '2026-2030',
-      courseCode: 'BA',
-      courseName: 'B.A. (Hons) Political Science',
-    },
-  ]);
+  useEffect(() => {
+    fetchLiveStudents();
+  }, []);
+
+  const fetchLiveStudents = async () => {
+    setLoading(true);
+    try {
+      const res = await fetch('/api/students');
+      const json = await res.json();
+      if (json && json.data) {
+        setStudents(json.data);
+      } else {
+        setStudents([]);
+      }
+    } catch {
+      setStudents([]);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleSimulatePromotion = async (student: StudentItem) => {
     setIsPromoting(student.id);

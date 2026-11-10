@@ -75,14 +75,20 @@ export default function Navbar() {
             })}
           </nav>
 
-          {/* ERP Admin Login Button */}
+          {/* Action Portals */}
           <div className="hidden sm:flex items-center gap-2 shrink-0">
             <Link
-              href="/admin/students"
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold text-white bg-[#002B5C] hover:bg-[#001836] rounded-lg shadow-sm whitespace-nowrap transition"
+              href="/student"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg whitespace-nowrap transition"
             >
-              <ShieldCheck className="w-4 h-4 text-[#D4AF37]" />
-              ERP Login
+              Student Login
+            </Link>
+            <Link
+              href="/admin/principal"
+              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-bold text-white bg-[#002B5C] hover:bg-[#001836] rounded-lg shadow-xs whitespace-nowrap transition"
+            >
+              <ShieldCheck className="w-3.5 h-3.5 text-[#D4AF37]" />
+              Principal Console
             </Link>
           </div>
 
