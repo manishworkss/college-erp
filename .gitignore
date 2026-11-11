@@ -26,6 +26,7 @@ dist/
 build/
 out/
 .next/
+.test-dist/
 *.tsbuildinfo
 
 # Debug logs
