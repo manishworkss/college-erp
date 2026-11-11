@@ -5,30 +5,34 @@ import Link from 'next/link';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import CollegeLogo from '@/components/CollegeLogo';
-import { 
-  FileText, 
-  CheckCircle2, 
-  Search, 
-  Printer, 
+import {
+  FACULTY_SUBJECTS,
+  FacultyType,
+  calculateSemesterFeeBreakdown,
+  FeeBreakdown,
+} from '@/lib/college-config';
+import {
+  CheckCircle2,
+  Search,
+  Printer,
   X,
   AlertCircle,
   CreditCard,
-  UserCheck,
-  Calendar,
-  Lock,
   ArrowRight,
-  ShieldCheck,
-  Clock
+  Lock,
 } from 'lucide-react';
 
 export default function OnlineAdmissionPage() {
-  // Mode: FRESH (Semester 1) vs PROGRESSION (Semester 2 to 8)
   const [admissionMode, setAdmissionMode] = useState<'FRESH' | 'PROGRESSION'>('FRESH');
   const [progressionCode, setProgressionCode] = useState('');
+  const [progressionVerified, setProgressionVerified] = useState(false);
   const [isLookingUp, setIsLookingUp] = useState(false);
-  const [lookupMessage, setLookupMessage] = useState<{ type: 'success' | 'error' | 'warning'; text: string } | null>(null);
+  const [lookupMessage, setLookupMessage] = useState<{
+    type: 'success' | 'error' | 'warning';
+    text: string;
+  } | null>(null);
 
-  // Status Modal Inputs
+  // Status Check Modal
   const [showStatusModal, setShowStatusModal] = useState(false);
   const [statusRefNo, setStatusRefNo] = useState('');
   const [statusDob, setStatusDob] = useState('');
@@ -38,14 +42,14 @@ export default function OnlineAdmissionPage() {
   // Fee Structure Review Modal
   const [showFeeModal, setShowFeeModal] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const [paymentMethod, setPaymentMethod] = useState<'ONLINE_GATEWAY' | 'BANK_CHALLAN'>('ONLINE_GATEWAY');
+  const [customFeeBreakdown, setCustomFeeBreakdown] = useState<FeeBreakdown | null>(null);
 
-  // Submitted Application Outcome
+  // Submitted Confirmation View
   const [submittedData, setSubmittedData] = useState<any | null>(null);
 
-  // Form State
   const [form, setForm] = useState({
-    // Basic Details
     session: '2026-2030',
     firstName: '',
     middleName: '',
@@ -58,145 +62,110 @@ export default function OnlineAdmissionPage() {
     religion: 'Hinduism',
     maritalStatus: 'Unmarried',
 
-    // CBCS Program & Subjects
-    faculty: 'Social Science',
-    mjcSubject: 'HISTORY',
-    micSubject: 'POLITICAL SCIENCE',
-    mdcSubject: 'ECONOMICS',
-    aecSubject: 'Hindi',
-    secSubject: 'Creative Writing',
-    vacSubject: 'Development of Personality',
+    faculty: 'Social Science' as FacultyType,
+    mjcSubject: FACULTY_SUBJECTS['Social Science'].mjc[0],
+    micSubject: FACULTY_SUBJECTS['Social Science'].mic[0],
+    mdcSubject: FACULTY_SUBJECTS['Social Science'].mdc[0],
+    aecSubject: FACULTY_SUBJECTS['Social Science'].aec[0],
+    secSubject: FACULTY_SUBJECTS['Social Science'].sec[0],
+    vacSubject: FACULTY_SUBJECTS['Social Science'].vac[0],
 
-    // Academic Tracking
     targetSemester: 1,
-
-    // University Registration
     universityAppNo: '',
 
-    // Parent Details
     fatherName: '',
     fatherPhone: '',
     motherName: '',
 
-    // Academic Table
-    matricBoard: 'BSEB, Patna',
-    matricPassingYear: '2024',
-    matricRollNum: '',
-    matricMarks: '',
-    matricPercent: '',
-    matricSchool: '',
-
-    interBoard: 'BSEB, Patna',
-    interPassingYear: '2026',
-    interRollNum: '',
-    interMarks: '',
-    interPercent: '',
-    interSchool: '',
-
-    // Miscellaneous
     aadhaarNo: '',
     apaarNo: '',
-
-    // Address
     currentAddress: '',
     permanentAddress: '',
-    sameAsCurrentAddress: false,
+    sameAsCurrentAddress: true,
   });
 
-  // Dynamic CBCS Subjects mapping by Faculty
-  const facultySubjects: Record<string, { mjc: string[]; mic: string[]; mdc: string[] }> = {
-    'Social Science': {
-      mjc: ['HISTORY', 'POLITICAL SCIENCE', 'ECONOMICS', 'SOCIOLOGY', 'PSYCHOLOGY', 'GEOGRAPHY', 'HOME SCIENCE', 'ANCIENT HISTORY & CULTURE', 'PUBLIC ADMINISTRATION'],
-      mic: ['POLITICAL SCIENCE', 'HISTORY', 'ECONOMICS', 'SOCIOLOGY', 'PSYCHOLOGY', 'GEOGRAPHY', 'HOME SCIENCE', 'ENGLISH', 'HINDI'],
-      mdc: ['ECONOMICS', 'HISTORY', 'POLITICAL SCIENCE', 'PHILOSOPHY', 'SOCIOLOGY', 'ENGLISH', 'HINDI'],
-    },
-    'Humanities': {
-      mjc: ['HINDI', 'ENGLISH', 'URDU', 'PHILOSOPHY', 'MUSIC', 'SANSKRIT', 'MAITHILI', 'BHOJPURI'],
-      mic: ['ENGLISH', 'HINDI', 'URDU', 'HISTORY', 'POLITICAL SCIENCE', 'PHILOSOPHY', 'MUSIC'],
-      mdc: ['HISTORY', 'POLITICAL SCIENCE', 'SOCIOLOGY', 'PHILOSOPHY', 'ECONOMICS'],
-    },
-    'Commerce': {
-      mjc: ['ACCOUNTING & FINANCE', 'MARKETING', 'HUMAN RESOURCE MANAGEMENT'],
-      mic: ['BUSINESS MANAGEMENT', 'ECONOMICS', 'MARKETING', 'ACCOUNTING & FINANCE'],
-      mdc: ['ECONOMICS', 'COMMUNICATION STUDIES', 'POLITICAL SCIENCE', 'SOCIOLOGY'],
-    },
-  };
-
-  const handleFacultyChange = (selectedFaculty: string) => {
-    const defaultMjc = facultySubjects[selectedFaculty]?.mjc[0] || '';
-    const defaultMic = facultySubjects[selectedFaculty]?.mic[0] || '';
-    const defaultMdc = facultySubjects[selectedFaculty]?.mdc[0] || '';
-    setForm({
-      ...form,
+  const handleFacultyChange = (selectedFaculty: FacultyType) => {
+    const subs = FACULTY_SUBJECTS[selectedFaculty];
+    setForm((prev) => ({
+      ...prev,
       faculty: selectedFaculty,
-      mjcSubject: defaultMjc,
-      micSubject: defaultMic,
-      mdcSubject: defaultMdc,
-    });
+      mjcSubject: subs.mjc[0],
+      micSubject: subs.mic[0],
+      mdcSubject: subs.mdc[0],
+      aecSubject: subs.aec[0],
+      secSubject: subs.sec[0],
+      vacSubject: subs.vac[0],
+    }));
   };
 
   const handleAadhaarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     let val = e.target.value.replace(/\D/g, '');
     if (val.length > 12) val = val.substring(0, 12);
     const formatted = val.match(/.{1,4}/g)?.join('-') || val;
-    setForm({ ...form, aadhaarNo: formatted });
+    setForm((prev) => ({ ...prev, aadhaarNo: formatted }));
   };
 
-  const handleApaarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    let val = e.target.value.replace(/\D/g, '');
-    if (val.length > 12) val = val.substring(0, 12);
-    const formatted = val.match(/.{1,4}/g)?.join('-') || val;
-    setForm({ ...form, apaarNo: formatted });
-  };
-
-  const handleSameAddressToggle = (checked: boolean) => {
-    setForm({
-      ...form,
-      sameAsCurrentAddress: checked,
-      permanentAddress: checked ? form.currentAddress : form.permanentAddress,
-    });
-  };
-
-  // Lookup existing student for Semester 2..8 progression
   const handleProgressionLookup = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!progressionCode.trim()) return;
 
     setIsLookingUp(true);
     setLookupMessage(null);
+    setProgressionVerified(false);
+    setCustomFeeBreakdown(null);
 
     try {
-      const res = await fetch(`/api/admissions?action=lookup&code=${encodeURIComponent(progressionCode.trim())}`);
+      const res = await fetch(
+        `/api/admissions?action=lookup&code=${encodeURIComponent(progressionCode.trim())}`
+      );
       const json = await res.json();
 
       if (!res.ok || !json.success) {
         setLookupMessage({
           type: 'error',
-          text: json.error || 'Student code not found. Please verify your Registration Code from Semester 1.',
+          text:
+            json.error ||
+            'Student code not found. Please verify your Registration Code from Semester 1.',
         });
         return;
       }
 
       const st = json.data;
 
-      // Check registration window status
-      if (st.windowStatus === 'CLOSED') {
+      if (st.pendingApproval) {
         setLookupMessage({
           type: 'warning',
-          text: st.windowMessage || `Registration for Semester ${st.nextSemester} is closed. Please visit college counter.`,
+          text: 'Your Semester 1 application is currently awaiting final approval & Roll No allocation by the Principal. Progression activates after approval.',
         });
         return;
       }
 
-      if (st.windowStatus === 'NOT_STARTED') {
+      if (st.maxReached) {
         setLookupMessage({
           type: 'warning',
-          text: st.windowMessage || `Registration for Semester ${st.nextSemester} has not commenced yet.`,
+          text: 'You have already completed Semester 8 registration for this UG program.',
         });
         return;
       }
 
-      // Auto-populate previous data from database
+      if (st.windowStatus === 'CLOSED' || st.windowStatus === 'NOT_STARTED') {
+        setLookupMessage({
+          type: 'warning',
+          text:
+            st.windowMessage ||
+            `Registration for Semester ${st.nextSemester} is currently not open.`,
+        });
+        return;
+      }
+
+      const faculty: FacultyType =
+        st.courseCode === 'BCOM'
+          ? 'Commerce'
+          : st.courseCode === 'BA-HUM'
+          ? 'Humanities'
+          : 'Social Science';
+      const subs = FACULTY_SUBJECTS[faculty];
+
       setForm((prev) => ({
         ...prev,
         firstName: st.firstName || st.fullName.split(' ')[0] || '',
@@ -215,40 +184,66 @@ export default function OnlineAdmissionPage() {
         currentAddress: st.currentAddress || st.address,
         permanentAddress: st.address,
         targetSemester: st.nextSemester,
-        faculty: st.courseCode === 'BCOM' ? 'Commerce' : st.courseCode === 'BA-HUM' ? 'Humanities' : 'Social Science',
+        faculty,
+        mjcSubject: subs.mjc[0],
+        micSubject: subs.mic[0],
+        mdcSubject: subs.mdc[0],
       }));
 
+      if (st.feeBreakdown) {
+        setCustomFeeBreakdown(st.feeBreakdown);
+      }
+
+      setProgressionVerified(true);
       setLookupMessage({
         type: 'success',
-        text: `Welcome back, ${st.fullName}! Your records from Semester ${st.currentSemester} are verified. Basic details auto-filled. Please select your Semester ${st.nextSemester} subjects and proceed to fee payment.`,
+        text: `Welcome back, ${st.fullName}! Verified up to Semester ${st.currentSemester}. Personal details auto-filled. Select Semester ${st.nextSemester} subjects and proceed to payment (zero admin wait).`,
       });
     } catch {
       setLookupMessage({
         type: 'error',
-        text: 'Failed to connect to records server. Please check internet connection.',
+        text: 'Failed to connect to records server. Please check connection.',
       });
     } finally {
       setIsLookingUp(false);
     }
   };
 
-  // Step 1: Pre-Submit (Opens Fee Structure Review Modal)
   const handleOpenFeeModal = (e: React.FormEvent) => {
     e.preventDefault();
+    setSubmitError(null);
+
+    if (admissionMode === 'PROGRESSION' && !progressionVerified) {
+      setLookupMessage({
+        type: 'error',
+        text: 'Please enter your Registration Code / Roll No and click "Fetch My Details" first.',
+      });
+      return;
+    }
+
     setShowFeeModal(true);
   };
 
-  // Step 2: Final Payment & Submission
   const handleFinalSubmit = async () => {
     setIsSubmitting(true);
+    setSubmitError(null);
 
     try {
       const payload = {
         action: admissionMode === 'FRESH' ? 'FRESH_ADMISSION' : 'PROGRESSION_REGISTER',
         formData: form,
+        paymentMethod,
         registrationCode: progressionCode.trim(),
         targetSemester: form.targetSemester,
-        transactionRef: `UTR-${Date.now()}`,
+        subjects: {
+          mjcSubject: form.mjcSubject,
+          micSubject: form.micSubject,
+          mdcSubject: form.mdcSubject,
+          aecSubject: form.aecSubject,
+          secSubject: form.secSubject,
+          vacSubject: form.vacSubject,
+        },
+        transactionRef: `UTR-${Date.now()}-${Math.floor(100 + Math.random() * 900)}`,
       };
 
       const res = await fetch('/api/admissions', {
@@ -260,12 +255,14 @@ export default function OnlineAdmissionPage() {
       const json = await res.json();
 
       if (!res.ok || !json.success) {
-        alert(json.error || 'Submission failed. Please check form details.');
+        setSubmitError(json.error || 'Submission failed. Please verify form inputs.');
         setIsSubmitting(false);
         return;
       }
 
       setShowFeeModal(false);
+
+      const formattedAmount = `₹${Number(json.amountPaid || activeFee.totalAmount).toLocaleString('en-IN')}.00`;
 
       if (admissionMode === 'FRESH') {
         setSubmittedData({
@@ -280,14 +277,14 @@ export default function OnlineAdmissionPage() {
             month: 'short',
             year: 'numeric',
           }),
-          receiptNo: json.data?.payments?.[0]?.receiptNo || `REC-2026-S1-${Math.floor(100000 + Math.random() * 900000)}`,
-          amountPaid: form.faculty === 'Commerce' ? '₹3,200.00' : '₹2,800.00',
+          receiptNo: json.receiptNo,
+          amountPaid: formattedAmount,
         });
       } else {
         setSubmittedData({
           ...form,
-          refNo: progressionCode,
-          registrationCode: progressionCode,
+          refNo: json.rollNo || progressionCode.trim(),
+          registrationCode: progressionCode.trim(),
           status: 'PROMOTED',
           statusTitle: `Successfully Registered & Promoted to Semester ${json.newSemester}`,
           statusBadgeColor: 'bg-emerald-100 text-emerald-800 border-emerald-300',
@@ -297,19 +294,18 @@ export default function OnlineAdmissionPage() {
             year: 'numeric',
           }),
           receiptNo: json.receiptNo,
-          amountPaid: form.faculty === 'Commerce' ? '₹3,200.00' : '₹2,800.00',
+          amountPaid: formattedAmount,
         });
       }
 
       window.scrollTo({ top: 0, behavior: 'smooth' });
-    } catch (err: any) {
-      alert(`Network error: ${err.message}`);
+    } catch (err: unknown) {
+      setSubmitError(err instanceof Error ? err.message : 'Network error during submission.');
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  // Real Status Lookup Modal Submit
   const handleCheckStatusSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!statusRefNo.trim() || !statusDob) return;
@@ -318,7 +314,9 @@ export default function OnlineAdmissionPage() {
     setStatusResult(null);
 
     try {
-      const res = await fetch(`/api/admissions?action=lookup&code=${encodeURIComponent(statusRefNo.trim())}`);
+      const res = await fetch(
+        `/api/admissions?action=lookup&code=${encodeURIComponent(statusRefNo.trim())}`
+      );
       const json = await res.json();
 
       if (!res.ok || !json.success) {
@@ -326,7 +324,7 @@ export default function OnlineAdmissionPage() {
           refNo: statusRefNo,
           candidateName: 'Record Not Found',
           status: 'RECORD_NOT_FOUND',
-          message: `No application or student record found matching "${statusRefNo}". Please verify your Registration Code or Reference Number.`,
+          message: `No application or student record found matching "${statusRefNo}".`,
         });
         return;
       }
@@ -337,7 +335,7 @@ export default function OnlineAdmissionPage() {
           refNo: statusRefNo,
           candidateName: st.fullName,
           status: 'DOB_MISMATCH',
-          message: 'Date of Birth does not match institutional records for this student identifier.',
+          message: 'Date of Birth does not match institutional records for this identifier.',
         });
         return;
       }
@@ -345,33 +343,28 @@ export default function OnlineAdmissionPage() {
       setStatusResult({
         refNo: st.registrationCode || st.applicationNo,
         candidateName: st.fullName,
-        fatherName: st.fatherName,
         course: st.courseName,
         semester: `Semester ${st.currentSemester}`,
         collegeRollNo: st.collegeRollNo || 'Awaiting Super Admin Allocation',
-        status: st.collegeRollNo ? 'ADMITTED' : 'APPLIED_PENDING_APPROVAL',
+        status: st.status,
         message: st.collegeRollNo
-          ? `Congratulations! Your admission is fully approved by the Principal. Your College Roll Number is ${st.collegeRollNo}. You can login to the ERP portal.`
-          : 'Your application & fee clearance have been received. It is currently under scrutiny for final approval and Roll Number allotment by the Principal.',
+          ? `Admission approved! College Roll Number: ${st.collegeRollNo}. Persistent Code for next semester: ${st.registrationCode}.`
+          : 'Your Semester 1 application & fee have been recorded. Currently awaiting Principal scrutiny for final admission & Roll Number.',
       });
     } catch {
       setStatusResult({
         refNo: statusRefNo,
         candidateName: 'Server Error',
         status: 'SERVER_ERROR',
-        message: 'Could not connect to database. Please retry in a few moments.',
+        message: 'Could not connect to database. Please retry.',
       });
     } finally {
       setIsCheckingStatus(false);
     }
   };
 
-  // Fee Calculation
-  const isCommerce = form.faculty === 'Commerce';
-  const tuitionFee = isCommerce ? 2200 : 1800;
-  const admissionFee = 500;
-  const examFee = isCommerce ? 500 : 500;
-  const totalFee = tuitionFee + admissionFee + examFee;
+  const activeFee: FeeBreakdown =
+    customFeeBreakdown || calculateSemesterFeeBreakdown(form.faculty, form.targetSemester);
 
   return (
     <div className="min-h-screen flex flex-col bg-slate-50 text-slate-800">
@@ -379,7 +372,6 @@ export default function OnlineAdmissionPage() {
 
       <main className="flex-1 py-8 px-4 sm:px-6 lg:px-8">
         <div className="max-w-5xl mx-auto">
-          {/* Top Instruction Banner */}
           <div className="bg-[#FFF8F0] border-l-4 border-[#800000] p-4 rounded-r-xl shadow-xs mb-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
             <div>
               <div className="text-xs font-bold uppercase tracking-wider text-[#800000] flex items-center gap-1.5">
@@ -390,6 +382,7 @@ export default function OnlineAdmissionPage() {
               </p>
             </div>
             <button
+              type="button"
               onClick={() => {
                 setStatusResult(null);
                 setShowStatusModal(true);
@@ -400,7 +393,6 @@ export default function OnlineAdmissionPage() {
             </button>
           </div>
 
-          {/* Submitted Form Printable View */}
           {submittedData ? (
             <div className="bg-white rounded-2xl border border-slate-300 shadow-md p-6 sm:p-10 mb-8 print:shadow-none print:border-none">
               <div className="text-center border-b-2 border-[#800000] pb-6 mb-6">
@@ -418,7 +410,6 @@ export default function OnlineAdmissionPage() {
                 </div>
               </div>
 
-              {/* Status Banner */}
               <div className={`p-4 rounded-xl border mb-6 ${submittedData.statusBadgeColor} flex items-center justify-between`}>
                 <div className="flex items-center gap-2">
                   <CheckCircle2 className="w-5 h-5 shrink-0" />
@@ -427,16 +418,15 @@ export default function OnlineAdmissionPage() {
                     <span className="text-[11px] opacity-90">
                       {submittedData.status === 'PROMOTED'
                         ? 'Fee cleared. Your academic standing is automatically updated for this semester.'
-                        : 'Application and Fee receipt recorded in MySQL database. Retain your Registration Code.'}
+                        : 'Application and Fee receipt recorded in database. Save your Registration Code for Semester 2.'}
                     </span>
                   </div>
                 </div>
               </div>
 
-              {/* Application Summary Box */}
               <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 mb-6 grid grid-cols-1 sm:grid-cols-4 gap-4 text-xs">
                 <div>
-                  <span className="text-slate-500 font-medium block">Application Ref No:</span>
+                  <span className="text-slate-500 font-medium block">Application Ref / Roll No:</span>
                   <span className="font-mono text-base font-bold text-[#800000]">{submittedData.refNo}</span>
                 </div>
                 <div>
@@ -455,46 +445,81 @@ export default function OnlineAdmissionPage() {
                 </div>
               </div>
 
-              {/* Particulars Grid */}
               <div className="space-y-4 text-xs">
                 <h3 className="font-bold text-sm text-[#800000] border-b border-slate-200 pb-1 uppercase tracking-wider">
                   1. Candidate Personal Particulars
                 </h3>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-white p-3 rounded-lg border border-slate-100">
-                  <div><strong>Full Name:</strong> {submittedData.firstName} {submittedData.middleName} {submittedData.lastName}</div>
-                  <div><strong>Gender:</strong> {submittedData.gender}</div>
-                  <div><strong>Date of Birth:</strong> {submittedData.dob}</div>
-                  <div><strong>Category:</strong> {submittedData.category}</div>
-                  <div><strong>Mobile:</strong> {submittedData.phone}</div>
-                  <div><strong>Email:</strong> {submittedData.email || 'N/A'}</div>
-                  <div><strong>Current Standing:</strong> Semester {submittedData.targetSemester}</div>
-                  <div><strong>Submission Date:</strong> {submittedData.submittedAt}</div>
+                  <div>
+                    <strong>Full Name:</strong> {submittedData.firstName} {submittedData.middleName}{' '}
+                    {submittedData.lastName}
+                  </div>
+                  <div>
+                    <strong>Gender:</strong> {submittedData.gender}
+                  </div>
+                  <div>
+                    <strong>Date of Birth:</strong> {submittedData.dob}
+                  </div>
+                  <div>
+                    <strong>Category:</strong> {submittedData.category}
+                  </div>
+                  <div>
+                    <strong>Mobile:</strong> {submittedData.phone}
+                  </div>
+                  <div>
+                    <strong>Email:</strong> {submittedData.email || 'N/A'}
+                  </div>
+                  <div>
+                    <strong>Current Standing:</strong> Semester {submittedData.targetSemester}
+                  </div>
+                  <div>
+                    <strong>Submission Date:</strong> {submittedData.submittedAt}
+                  </div>
                 </div>
 
                 <h3 className="font-bold text-sm text-[#800000] border-b border-slate-200 pb-1 uppercase tracking-wider pt-2">
                   2. BRABU 4-Year CBCS Subject Allocations
                 </h3>
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 bg-white p-3 rounded-lg border border-slate-100">
-                  <div><strong>Program:</strong> {submittedData.faculty}</div>
-                  <div><strong>Major Course (MJC):</strong> <span className="font-bold text-[#800000]">{submittedData.mjcSubject}</span></div>
-                  <div><strong>Minor Course (MIC):</strong> {submittedData.micSubject}</div>
-                  <div><strong>Multidisciplinary (MDC):</strong> {submittedData.mdcSubject}</div>
-                  <div><strong>Ability Enhancement (AEC):</strong> {submittedData.aecSubject}</div>
-                  <div><strong>Skill Enhancement (SEC):</strong> {submittedData.secSubject}</div>
-                  <div className="sm:col-span-3"><strong>Value Added Course (VAC):</strong> {submittedData.vacSubject}</div>
+                  <div>
+                    <strong>Program:</strong> {submittedData.faculty}
+                  </div>
+                  <div>
+                    <strong>Major Course (MJC):</strong>{' '}
+                    <span className="font-bold text-[#800000]">{submittedData.mjcSubject}</span>
+                  </div>
+                  <div>
+                    <strong>Minor Course (MIC):</strong> {submittedData.micSubject}
+                  </div>
+                  <div>
+                    <strong>Multidisciplinary (MDC):</strong> {submittedData.mdcSubject}
+                  </div>
+                  <div>
+                    <strong>Ability Enhancement (AEC):</strong> {submittedData.aecSubject}
+                  </div>
+                  <div>
+                    <strong>Skill Enhancement (SEC):</strong> {submittedData.secSubject}
+                  </div>
+                  <div className="sm:col-span-3">
+                    <strong>Value Added Course (VAC):</strong> {submittedData.vacSubject}
+                  </div>
                 </div>
               </div>
 
-              {/* Action Buttons */}
               <div className="mt-8 flex flex-wrap justify-center gap-4 print:hidden">
                 <button
+                  type="button"
                   onClick={() => window.print()}
                   className="px-6 py-2.5 text-xs font-bold text-white bg-[#800000] hover:bg-[#5C0000] rounded-xl shadow-sm flex items-center gap-2"
                 >
                   <Printer className="w-4 h-4" /> Print Registration Slip
                 </button>
                 <button
-                  onClick={() => setSubmittedData(null)}
+                  type="button"
+                  onClick={() => {
+                    setSubmittedData(null);
+                    setProgressionVerified(false);
+                  }}
                   className="px-6 py-2.5 text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-xl"
                 >
                   Submit Another Form
@@ -509,13 +534,14 @@ export default function OnlineAdmissionPage() {
             </div>
           ) : (
             <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
-              
-              {/* MODE SWITCHER: Fresh vs Progression */}
+              {/* Mode Switcher */}
               <div className="border-b border-slate-200 bg-slate-50/70 p-4">
                 <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
                   <div>
                     <h2 className="text-base font-bold text-slate-900">Select Registration Mode</h2>
-                    <p className="text-xs text-slate-500">Choose fresh admission or re-register for higher semesters using your code.</p>
+                    <p className="text-xs text-slate-500">
+                      Choose fresh admission or re-register for higher semesters using your Sem 1 code.
+                    </p>
                   </div>
 
                   <div className="flex items-center gap-2 bg-white p-1 rounded-xl border border-slate-200">
@@ -523,6 +549,8 @@ export default function OnlineAdmissionPage() {
                       type="button"
                       onClick={() => {
                         setAdmissionMode('FRESH');
+                        setProgressionVerified(false);
+                        setCustomFeeBreakdown(null);
                         setForm((prev) => ({ ...prev, targetSemester: 1 }));
                         setLookupMessage(null);
                       }}
@@ -538,6 +566,7 @@ export default function OnlineAdmissionPage() {
                       type="button"
                       onClick={() => {
                         setAdmissionMode('PROGRESSION');
+                        setProgressionVerified(false);
                         setLookupMessage(null);
                       }}
                       className={`px-4 py-2 text-xs font-bold rounded-lg transition ${
@@ -551,7 +580,6 @@ export default function OnlineAdmissionPage() {
                   </div>
                 </div>
 
-                {/* PROGRESSION CODE LOOKUP BOX */}
                 {admissionMode === 'PROGRESSION' && (
                   <form onSubmit={handleProgressionLookup} className="mt-4 pt-4 border-t border-slate-200/80">
                     <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs">
@@ -562,9 +590,12 @@ export default function OnlineAdmissionPage() {
                         <input
                           type="text"
                           required
-                          placeholder="e.g. MKR-REG-2026-00042 or 26/BASS/0001"
+                          placeholder="e.g. MKR-REG-2026-00001 or 26/BASS/0001"
                           value={progressionCode}
-                          onChange={(e) => setProgressionCode(e.target.value)}
+                          onChange={(e) => {
+                            setProgressionCode(e.target.value);
+                            setProgressionVerified(false);
+                          }}
                           className="flex-1 text-xs px-3.5 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-[#800000] focus:outline-none font-mono"
                         />
                         <button
@@ -595,10 +626,7 @@ export default function OnlineAdmissionPage() {
                 )}
               </div>
 
-              {/* THE FORM */}
               <form onSubmit={handleOpenFeeModal} className="p-6 sm:p-8 space-y-6">
-                
-                {/* PROGRAM & CBCS SUBJECTS */}
                 <div>
                   <h3 className="text-sm font-bold text-[#800000] uppercase tracking-wider mb-4 pb-1 border-b border-slate-100 flex items-center justify-between">
                     <span>1. Academic Program & BRABU CBCS Choices</span>
@@ -615,7 +643,7 @@ export default function OnlineAdmissionPage() {
                       <select
                         value={form.faculty}
                         disabled={admissionMode === 'PROGRESSION'}
-                        onChange={(e) => handleFacultyChange(e.target.value)}
+                        onChange={(e) => handleFacultyChange(e.target.value as FacultyType)}
                         className="w-full text-xs sm:text-sm px-3.5 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-[#800000] focus:outline-none bg-white font-bold text-[#800000] disabled:bg-slate-100"
                       >
                         <option value="Social Science">Bachelor&apos;s of Arts (BA) – Social Science</option>
@@ -633,23 +661,25 @@ export default function OnlineAdmissionPage() {
                         onChange={(e) => setForm({ ...form, mjcSubject: e.target.value })}
                         className="w-full text-xs sm:text-sm px-3.5 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-[#800000] focus:outline-none bg-white font-bold text-[#800000]"
                       >
-                        {facultySubjects[form.faculty]?.mjc.map((sub) => (
-                          <option key={sub} value={sub}>{sub}</option>
+                        {FACULTY_SUBJECTS[form.faculty]?.mjc.map((sub) => (
+                          <option key={sub} value={sub}>
+                            {sub}
+                          </option>
                         ))}
                       </select>
                     </div>
 
                     <div>
-                      <label className="block text-xs font-bold text-slate-700 mb-1">
-                        Minor Subject (MIC)
-                      </label>
+                      <label className="block text-xs font-bold text-slate-700 mb-1">Minor Subject (MIC)</label>
                       <select
                         value={form.micSubject}
                         onChange={(e) => setForm({ ...form, micSubject: e.target.value })}
                         className="w-full text-xs sm:text-sm px-3.5 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-[#800000] focus:outline-none bg-white font-medium"
                       >
-                        {facultySubjects[form.faculty]?.mic.map((sub) => (
-                          <option key={sub} value={sub}>{sub}</option>
+                        {FACULTY_SUBJECTS[form.faculty]?.mic.map((sub) => (
+                          <option key={sub} value={sub}>
+                            {sub}
+                          </option>
                         ))}
                       </select>
                     </div>
@@ -663,8 +693,10 @@ export default function OnlineAdmissionPage() {
                         onChange={(e) => setForm({ ...form, mdcSubject: e.target.value })}
                         className="w-full text-xs sm:text-sm px-3.5 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-[#800000] focus:outline-none bg-white"
                       >
-                        {facultySubjects[form.faculty]?.mdc.map((sub) => (
-                          <option key={sub} value={sub}>{sub}</option>
+                        {FACULTY_SUBJECTS[form.faculty]?.mdc.map((sub) => (
+                          <option key={sub} value={sub}>
+                            {sub}
+                          </option>
                         ))}
                       </select>
                     </div>
@@ -678,10 +710,11 @@ export default function OnlineAdmissionPage() {
                         onChange={(e) => setForm({ ...form, aecSubject: e.target.value })}
                         className="w-full text-xs sm:text-sm px-3.5 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-[#800000] focus:outline-none bg-white"
                       >
-                        <option value="Hindi">Hindi (MIL)</option>
-                        <option value="English">English (Communication)</option>
-                        <option value="Urdu">Urdu (MIL)</option>
-                        <option value="Sanskrit">Sanskrit (MIL)</option>
+                        {FACULTY_SUBJECTS[form.faculty]?.aec.map((sub) => (
+                          <option key={sub} value={sub}>
+                            {sub}
+                          </option>
+                        ))}
                       </select>
                     </div>
 
@@ -694,18 +727,41 @@ export default function OnlineAdmissionPage() {
                         onChange={(e) => setForm({ ...form, secSubject: e.target.value })}
                         className="w-full text-xs sm:text-sm px-3.5 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-[#800000] focus:outline-none bg-white"
                       >
-                        <option value="Creative Writing">Creative Writing</option>
-                        <option value="Digital Marketing">Digital Marketing</option>
-                        <option value="Basic IT Tools">Basic IT Tools & Computing</option>
+                        {FACULTY_SUBJECTS[form.faculty]?.sec.map((sub) => (
+                          <option key={sub} value={sub}>
+                            {sub}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div className="sm:col-span-3">
+                      <label className="block text-xs font-bold text-slate-700 mb-1">
+                        Value Added Course (VAC)
+                      </label>
+                      <select
+                        value={form.vacSubject}
+                        onChange={(e) => setForm({ ...form, vacSubject: e.target.value })}
+                        className="w-full text-xs sm:text-sm px-3.5 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-[#800000] focus:outline-none bg-white"
+                      >
+                        {FACULTY_SUBJECTS[form.faculty]?.vac.map((sub) => (
+                          <option key={sub} value={sub}>
+                            {sub}
+                          </option>
+                        ))}
                       </select>
                     </div>
                   </div>
                 </div>
 
-                {/* BASIC CANDIDATE PARTICULARS */}
                 <div>
-                  <h3 className="text-sm font-bold text-[#800000] uppercase tracking-wider mb-4 pb-1 border-b border-slate-100">
-                    2. Candidate Personal Information {admissionMode === 'PROGRESSION' && '(Restored from Sem 1)'}
+                  <h3 className="text-sm font-bold text-[#800000] uppercase tracking-wider mb-4 pb-1 border-b border-slate-100 flex items-center gap-2">
+                    <span>2. Candidate Personal Information</span>
+                    {admissionMode === 'PROGRESSION' && (
+                      <span className="inline-flex items-center gap-1 text-[11px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded font-semibold">
+                        <Lock className="w-3 h-3" /> Auto-Filled from Sem 1
+                      </span>
+                    )}
                   </h3>
 
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -845,6 +901,44 @@ export default function OnlineAdmissionPage() {
                       </select>
                     </div>
 
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 mb-1">Email Address</label>
+                      <input
+                        type="email"
+                        disabled={admissionMode === 'PROGRESSION'}
+                        placeholder="student@email.com (optional)"
+                        value={form.email}
+                        onChange={(e) => setForm({ ...form, email: e.target.value })}
+                        className="w-full text-xs sm:text-sm px-3.5 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-[#800000] focus:outline-none disabled:bg-slate-100"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 mb-1">Aadhaar Number</label>
+                      <input
+                        type="text"
+                        disabled={admissionMode === 'PROGRESSION'}
+                        placeholder="XXXX-XXXX-XXXX"
+                        value={form.aadhaarNo}
+                        onChange={handleAadhaarChange}
+                        className="w-full text-xs sm:text-sm px-3.5 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-[#800000] focus:outline-none disabled:bg-slate-100 font-mono"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 mb-1">
+                        BRABU Application No
+                      </label>
+                      <input
+                        type="text"
+                        disabled={admissionMode === 'PROGRESSION'}
+                        placeholder="Optional Univ Ref No"
+                        value={form.universityAppNo}
+                        onChange={(e) => setForm({ ...form, universityAppNo: e.target.value })}
+                        className="w-full text-xs sm:text-sm px-3.5 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-[#800000] focus:outline-none disabled:bg-slate-100"
+                      />
+                    </div>
+
                     <div className="sm:col-span-3">
                       <label className="block text-xs font-bold text-slate-700 mb-1">
                         Full Address <span className="text-rose-600">*</span>
@@ -862,11 +956,11 @@ export default function OnlineAdmissionPage() {
                   </div>
                 </div>
 
-                {/* SUBMIT BUTTON -> OPENS FEE MODAL */}
                 <div className="pt-4 border-t border-slate-200 flex justify-end">
                   <button
                     type="submit"
-                    className="px-8 py-3 text-xs sm:text-sm font-bold text-white bg-[#800000] hover:bg-[#5C0000] rounded-xl shadow-md transition flex items-center gap-2"
+                    disabled={admissionMode === 'PROGRESSION' && !progressionVerified}
+                    className="px-8 py-3 text-xs sm:text-sm font-bold text-white bg-[#800000] hover:bg-[#5C0000] rounded-xl shadow-md transition flex items-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed"
                   >
                     <span>Proceed to Fee Structure & Payment</span>
                     <ArrowRight className="w-4 h-4" />
@@ -877,7 +971,7 @@ export default function OnlineAdmissionPage() {
           )}
         </div>
 
-        {/* FEE STRUCTURE PREVIEW & PAYMENT MODAL */}
+        {/* Fee Structure Modal */}
         {showFeeModal && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4">
             <div className="bg-white rounded-2xl max-w-lg w-full overflow-hidden shadow-2xl border border-slate-200">
@@ -891,6 +985,7 @@ export default function OnlineAdmissionPage() {
                   </span>
                 </div>
                 <button
+                  type="button"
                   onClick={() => setShowFeeModal(false)}
                   className="text-white/80 hover:text-white"
                 >
@@ -899,15 +994,22 @@ export default function OnlineAdmissionPage() {
               </div>
 
               <div className="p-6 space-y-4 text-xs">
-                {/* Candidate Overview */}
+                {submitError && (
+                  <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 rounded-lg flex items-center gap-2">
+                    <AlertCircle className="w-4 h-4 shrink-0" />
+                    <span>{submitError}</span>
+                  </div>
+                )}
+
                 <div className="bg-slate-50 p-3 rounded-xl border border-slate-200">
-                  <div className="font-bold text-slate-900">{form.firstName} {form.lastName}</div>
+                  <div className="font-bold text-slate-900">
+                    {form.firstName} {form.lastName}
+                  </div>
                   <div className="text-[11px] text-slate-500 font-medium">
                     Program: Bachelor&apos;s ({form.faculty}) • MJC: {form.mjcSubject}
                   </div>
                 </div>
 
-                {/* Detailed Fee Breakdown Table */}
                 <div className="border border-slate-200 rounded-xl overflow-hidden">
                   <table className="w-full text-left">
                     <thead className="bg-slate-100 font-bold text-[11px] text-slate-600 border-b">
@@ -918,26 +1020,39 @@ export default function OnlineAdmissionPage() {
                     </thead>
                     <tbody className="divide-y divide-slate-100">
                       <tr>
-                        <td className="p-2.5 font-medium text-slate-700">Admission & Institutional Registration Fee</td>
-                        <td className="p-2.5 text-right font-mono font-bold text-slate-800">₹{admissionFee}.00</td>
+                        <td className="p-2.5 font-medium text-slate-700">
+                          Admission & Institutional Registration Fee
+                        </td>
+                        <td className="p-2.5 text-right font-mono font-bold text-slate-800">
+                          ₹{activeFee.admissionFee}.00
+                        </td>
                       </tr>
                       <tr>
-                        <td className="p-2.5 font-medium text-slate-700">BRABU CBCS Tuition Fee (Semester {form.targetSemester})</td>
-                        <td className="p-2.5 text-right font-mono font-bold text-slate-800">₹{tuitionFee}.00</td>
+                        <td className="p-2.5 font-medium text-slate-700">
+                          BRABU CBCS Tuition Fee (Semester {form.targetSemester})
+                        </td>
+                        <td className="p-2.5 text-right font-mono font-bold text-slate-800">
+                          ₹{activeFee.tuitionFee}.00
+                        </td>
                       </tr>
                       <tr>
-                        <td className="p-2.5 font-medium text-slate-700">Laboratory & University Examination Fee</td>
-                        <td className="p-2.5 text-right font-mono font-bold text-slate-800">₹{examFee}.00</td>
+                        <td className="p-2.5 font-medium text-slate-700">
+                          Laboratory & University Examination Fee
+                        </td>
+                        <td className="p-2.5 text-right font-mono font-bold text-slate-800">
+                          ₹{activeFee.examFee}.00
+                        </td>
                       </tr>
                       <tr className="bg-[#800000]/5 font-black text-slate-900">
                         <td className="p-3 text-sm text-[#800000]">Total Payable Amount</td>
-                        <td className="p-3 text-right font-mono text-base text-[#800000]">₹{totalFee}.00</td>
+                        <td className="p-3 text-right font-mono text-base text-[#800000]">
+                          ₹{activeFee.totalAmount}.00
+                        </td>
                       </tr>
                     </tbody>
                   </table>
                 </div>
 
-                {/* Payment Option */}
                 <div>
                   <label className="block font-bold text-slate-800 mb-1.5">Select Payment Method</label>
                   <div className="grid grid-cols-2 gap-2">
@@ -967,20 +1082,18 @@ export default function OnlineAdmissionPage() {
                   </div>
                 </div>
 
-                {/* Workflow Notice */}
                 <div className="p-3 rounded-lg bg-blue-50 border border-blue-200 text-blue-900 text-[11px] leading-relaxed">
                   {admissionMode === 'FRESH' ? (
                     <span>
-                      <strong>Semester 1 Rule:</strong> Once payment is confirmed, your record is stored and will receive final approval from the Principal (Super Admin).
+                      <strong>Semester 1 Rule:</strong> Once payment is confirmed, your record is stored and awaits final approval from the Principal (Super Admin).
                     </span>
                   ) : (
                     <span>
-                      <strong>Progression Rule:</strong> As an existing student, your payment will automatically promote you to Semester {form.targetSemester} without waiting for manual permission.
+                      <strong>Progression Rule:</strong> As an existing student, payment automatically promotes you to Semester {form.targetSemester} without waiting for manual permission.
                     </span>
                   )}
                 </div>
 
-                {/* Modal Buttons */}
                 <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
                   <button
                     type="button"
@@ -996,7 +1109,7 @@ export default function OnlineAdmissionPage() {
                     className="px-6 py-2 font-bold text-white bg-[#800000] hover:bg-[#5C0000] rounded-lg shadow-sm disabled:opacity-50 flex items-center gap-1.5"
                   >
                     <CreditCard className="w-4 h-4" />
-                    {isSubmitting ? 'Processing Payment...' : `Pay ₹${totalFee} & Register`}
+                    {isSubmitting ? 'Processing Payment...' : `Pay ₹${activeFee.totalAmount} & Register`}
                   </button>
                 </div>
               </div>
@@ -1004,11 +1117,12 @@ export default function OnlineAdmissionPage() {
           </div>
         )}
 
-        {/* STATUS CHECK MODAL */}
+        {/* Status Check Modal */}
         {showStatusModal && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
             <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl relative border border-slate-200">
               <button
+                type="button"
                 onClick={() => setShowStatusModal(false)}
                 className="absolute top-4 right-4 text-slate-400 hover:text-slate-600"
               >
@@ -1075,11 +1189,20 @@ export default function OnlineAdmissionPage() {
                     <span className="font-bold text-slate-900">{statusResult.candidateName}</span>
                   </div>
                   {statusResult.collegeRollNo && (
-                    <div><strong>College Roll No:</strong> <span className="font-mono font-bold text-[#800000]">{statusResult.collegeRollNo}</span></div>
+                    <div>
+                      <strong>College Roll No:</strong>{' '}
+                      <span className="font-mono font-bold text-[#800000]">{statusResult.collegeRollNo}</span>
+                    </div>
                   )}
-                  {statusResult.semester && <div><strong>Standing:</strong> {statusResult.semester}</div>}
+                  {statusResult.semester && (
+                    <div>
+                      <strong>Standing:</strong> {statusResult.semester}
+                    </div>
+                  )}
                   <div className="flex justify-between items-center">
-                    <span><strong>Status:</strong></span>
+                    <span>
+                      <strong>Status:</strong>
+                    </span>
                     <span className="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 font-bold text-[11px]">
                       {statusResult.status}
                     </span>

@@ -5,14 +5,13 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import CollegeLogo from '@/components/CollegeLogo';
-import { Info, ArrowRight, Eye, EyeOff } from 'lucide-react';
+import { Info, ArrowLeft } from 'lucide-react';
 
 type UserRole = 'SUPER_ADMIN' | 'FACULTY' | 'STUDENT';
 
 export default function LoginPage() {
   const router = useRouter();
 
-  // 2 Official Showcase Images - called directly as-is with original extensions
   const erpSlides = [
     {
       src: '/assets/erp-panel/image-1.png',
@@ -26,7 +25,6 @@ export default function LoginPage() {
 
   const [currentSlide, setCurrentSlide] = useState(0);
 
-  // Auto-slide every 7 seconds
   useEffect(() => {
     const timer = setInterval(() => {
       setCurrentSlide((prev) => (prev + 1) % erpSlides.length);
@@ -42,6 +40,7 @@ export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
+  const [forgotNotice, setForgotNotice] = useState(false);
 
   const roleConfig = {
     SUPER_ADMIN: {
@@ -53,13 +52,13 @@ export default function LoginPage() {
     FACULTY: {
       label: 'Faculty',
       fullLabel: 'Faculty Admin',
-      placeholder: 'Faculty ID / Registered Email / Mobile',
+      placeholder: 'Staff Code (MKR-HIST-001) / Email / Mobile',
       destination: '/faculty',
     },
     STUDENT: {
       label: 'Student',
       fullLabel: 'Student / Parent',
-      placeholder: 'College Roll No. / Application No. / Mobile',
+      placeholder: 'Roll No / Reg Code (MKR-REG-...) / App No',
       destination: '/student',
     },
   };
@@ -70,12 +69,14 @@ export default function LoginPage() {
     setPassword('');
     setErrorMessage('');
     setSuccessMessage('');
+    setForgotNotice(false);
   };
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage('');
     setSuccessMessage('');
+    setForgotNotice(false);
 
     if (!username.trim()) {
       setErrorMessage('Please enter your Username / ID / Mobile.');
@@ -98,7 +99,9 @@ export default function LoginPage() {
       const data = await response.json();
 
       if (!response.ok || !data.success) {
-        setErrorMessage(data.error || 'Invalid login credentials. Please check your credentials and try again.');
+        setErrorMessage(
+          data.error || 'Invalid login credentials. Please check your credentials and try again.'
+        );
         setIsLoading(false);
         return;
       }
@@ -106,7 +109,7 @@ export default function LoginPage() {
       setSuccessMessage(`Welcome ${data.user?.name || ''}! Redirecting...`);
       setTimeout(() => {
         router.push(data.redirectUrl || roleConfig[role].destination);
-      }, 500);
+      }, 400);
     } catch {
       setErrorMessage('Unable to connect to authentication server. Please try again.');
       setIsLoading(false);
@@ -115,10 +118,7 @@ export default function LoginPage() {
 
   return (
     <div className="h-screen w-screen overflow-hidden flex flex-col lg:flex-row bg-white">
-      
-      {/* ========================================================= */}
-      {/* LEFT SIDE: Full-Page Slideshow (3 Sec Interval, Pure WebP)*/}
-      {/* ========================================================= */}
+      {/* LEFT SIDE: Campus Slideshow */}
       <div className="hidden lg:block lg:w-[62%] xl:w-[65%] h-full relative bg-slate-950 overflow-hidden select-none">
         {erpSlides.map((slide, idx) => (
           <div
@@ -139,13 +139,18 @@ export default function LoginPage() {
         ))}
       </div>
 
-      {/* ========================================================= */}
-      {/* RIGHT SIDE: Compact, Zero-Scroll Role-Based Login Box     */}
-      {/* ========================================================= */}
+      {/* RIGHT SIDE: Role-Based Login Box */}
       <div className="w-full lg:w-[38%] xl:w-[35%] h-full flex flex-col justify-center px-6 sm:px-10 md:px-12 bg-white overflow-y-auto lg:overflow-hidden">
         <div className="w-full max-w-sm mx-auto">
-          
-          {/* Institution Header with Emblem */}
+          <div className="mb-4">
+            <Link
+              href="/"
+              className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-[#800000] transition"
+            >
+              <ArrowLeft className="w-3.5 h-3.5" /> Back to College Home
+            </Link>
+          </div>
+
           <div className="text-center mb-6">
             <div className="flex justify-center mb-2">
               <CollegeLogo size={68} />
@@ -153,27 +158,26 @@ export default function LoginPage() {
             <h1 className="text-xl sm:text-2xl font-black text-[#800000] tracking-tight leading-snug">
               M.K.R. Dr. G.R.D. College
             </h1>
-            <p className="text-xs text-slate-500 font-medium">
-              Enterprise Resource Planning (ERP)
-            </p>
+            <p className="text-xs text-slate-500 font-medium">Enterprise Resource Planning (ERP)</p>
           </div>
 
-          {/* Feedback messages */}
           {errorMessage && (
-            <div className="mb-3 p-2 bg-red-50 border-l-4 border-red-500 text-red-700 text-xs rounded">
+            <div className="mb-3 p-2.5 bg-red-50 border-l-4 border-red-500 text-red-700 text-xs rounded">
               {errorMessage}
             </div>
           )}
           {successMessage && (
-            <div className="mb-3 p-2 bg-emerald-50 border-l-4 border-emerald-500 text-emerald-800 text-xs rounded">
+            <div className="mb-3 p-2.5 bg-emerald-50 border-l-4 border-emerald-500 text-emerald-800 text-xs rounded">
               {successMessage}
             </div>
           )}
+          {forgotNotice && (
+            <div className="mb-3 p-2.5 bg-amber-50 border-l-4 border-amber-500 text-amber-900 text-xs rounded">
+              Faculty passwords can be reset by the Super Admin. Students can use Date of Birth (YYYY-MM-DD) or registered mobile, or contact +91-7597052444.
+            </div>
+          )}
 
-          {/* Login Form */}
           <form onSubmit={handleLogin} className="space-y-4">
-            
-            {/* 1. ROLE SELECTION (Radio Buttons matching reference) */}
             <div>
               <label className="block text-xs font-bold text-slate-800 mb-1.5">
                 <span className="text-red-500">*</span>Role
@@ -217,7 +221,6 @@ export default function LoginPage() {
               </div>
             </div>
 
-            {/* 2. USERNAME */}
             <div>
               <label htmlFor="username" className="block text-xs font-bold text-slate-800 mb-1">
                 <span className="text-red-500">*</span>Username
@@ -234,12 +237,18 @@ export default function LoginPage() {
               />
             </div>
 
-            {/* 3. PASSWORD */}
             <div>
               <div className="flex items-center justify-between mb-1">
                 <label htmlFor="password" className="text-xs font-bold text-slate-800 flex items-center gap-1">
                   <span className="text-red-500">*</span>Password
-                  <span title="Enter your assigned ERP password" className="text-slate-400 cursor-help">
+                  <span
+                    title={
+                      role === 'STUDENT'
+                        ? 'Enter your DOB (YYYY-MM-DD) or registered phone'
+                        : 'Enter your assigned ERP password'
+                    }
+                    className="text-slate-400 cursor-help"
+                  >
                     <Info className="w-3.5 h-3.5 text-slate-400" />
                   </span>
                 </label>
@@ -249,13 +258,12 @@ export default function LoginPage() {
                 type={showPassword ? 'text' : 'password'}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="Password"
+                placeholder={role === 'STUDENT' ? 'YYYY-MM-DD or Phone' : 'Password'}
                 className="w-full px-3 py-2 text-xs sm:text-sm border border-slate-300 rounded focus:ring-1 focus:ring-[#008080] focus:border-[#008080] text-slate-800 placeholder-slate-400 bg-white"
                 autoComplete="current-password"
                 required
               />
 
-              {/* Show Password Checkbox */}
               <div className="flex items-center mt-2">
                 <input
                   id="showPassword"
@@ -270,7 +278,6 @@ export default function LoginPage() {
               </div>
             </div>
 
-            {/* 4. BUTTONS (Login & Forgot Password matching reference) */}
             <div className="pt-2 flex items-center gap-3">
               <button
                 type="submit"
@@ -282,9 +289,7 @@ export default function LoginPage() {
 
               <button
                 type="button"
-                onClick={() => {
-                  alert('Please contact MKR College Helpdesk at +91-7597052444 or email mkrdr.grdcollege@gmail.com');
-                }}
+                onClick={() => setForgotNotice((v) => !v)}
                 className="flex-1 py-2 px-4 rounded text-xs sm:text-sm font-bold text-white bg-[#E05D5D] hover:bg-[#c94949] transition text-center"
               >
                 Forgot Password
@@ -292,9 +297,19 @@ export default function LoginPage() {
             </div>
           </form>
 
+          <div className="mt-6 pt-4 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500">
+            <Link href="/admission" className="hover:text-[#800000] font-semibold">
+              Online Admission →
+            </Link>
+            <Link href="/complaint" className="hover:text-[#800000] font-semibold">
+              Grievance Cell
+            </Link>
+            <Link href="/contact" className="hover:text-[#800000] font-semibold">
+              Helpdesk
+            </Link>
+          </div>
         </div>
       </div>
-
     </div>
   );
 }

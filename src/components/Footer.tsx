@@ -1,7 +1,7 @@
 import React from 'react';
 import Link from 'next/link';
 import CollegeLogo from '@/components/CollegeLogo';
-import { MapPin, Phone, Mail, Clock, ShieldCheck } from 'lucide-react';
+import { MapPin, Phone, Mail } from 'lucide-react';
 
 export default function Footer() {
   return (
@@ -37,6 +37,11 @@ export default function Footer() {
               <li>
                 <Link href="/complaint" className="hover:text-white transition">
                   • Grievance & Complain Cell
+                </Link>
+              </li>
+              <li>
+                <Link href="/contact" className="hover:text-white transition">
+                  • Campus Helpdesk & Contact
                 </Link>
               </li>
               <li>

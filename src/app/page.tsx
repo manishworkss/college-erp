@@ -3,12 +3,12 @@ import Link from 'next/link';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import CollegeLogo from '@/components/CollegeLogo';
-import { 
-  GraduationCap, 
-  AlertCircle, 
-  ShieldCheck, 
+import NoticeTicker from '@/components/NoticeTicker';
+import {
+  GraduationCap,
+  AlertCircle,
+  ShieldCheck,
   ArrowRight,
-  Bell
 } from 'lucide-react';
 
 export default function Home() {
@@ -18,16 +18,8 @@ export default function Home() {
 
       <main className="flex-1 flex flex-col justify-center py-10 sm:py-16 px-4 sm:px-6 lg:px-8">
         <div className="max-w-4xl mx-auto w-full">
-          
-          {/* Top Notice Banner */}
-          <div className="mb-8 bg-[#FFF8F0] border border-[#800000]/20 rounded-xl p-3 flex items-center gap-3 shadow-xs">
-            <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-[#800000] text-white text-[11px] font-bold shrink-0">
-              <Bell className="w-3.5 h-3.5 text-[#D4AF37]" /> Notice
-            </span>
-            <p className="text-xs sm:text-sm text-slate-700 font-medium truncate">
-              UG Semester 1 (Batch 2026–2030) Online Admission & CBCS Subject Selection is active.
-            </p>
-          </div>
+          {/* Dynamic Official Notice Banner */}
+          <NoticeTicker />
 
           {/* College Identity & Emblem */}
           <div className="text-center mb-10">
@@ -42,9 +34,8 @@ export default function Home() {
             </p>
           </div>
 
-          {/* 3 Core Modules in Exact Requested Order */}
+          {/* 3 Core Modules */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-            
             {/* 1. Online Admission Form */}
             <Link
               href="/admission"
@@ -110,9 +101,7 @@ export default function Home() {
                 <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
               </div>
             </Link>
-
           </div>
-
         </div>
       </main>
 

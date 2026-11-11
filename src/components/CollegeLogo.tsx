@@ -17,15 +17,14 @@ export default function CollegeLogo({
       className={`relative inline-flex items-center justify-center shrink-0 overflow-hidden ${className}`}
       style={{ width: size, height: size }}
     >
-      <img
+      <Image
         src="/assets/logo/mkr-dr-grd-college-logo.webp"
         alt={alt}
         width={size}
         height={size}
+        priority
         className="w-full h-full object-contain mix-blend-multiply pointer-events-none select-none transition-transform"
-        loading="eager"
       />
     </div>
   );
 }
-

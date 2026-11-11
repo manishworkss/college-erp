@@ -2,27 +2,28 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import CollegeLogo from '@/components/CollegeLogo';
-import { 
-  Users, 
-  ShieldCheck, 
-  CreditCard, 
-  BookOpen, 
-  Bell, 
-  Search, 
-  CheckCircle2, 
-  RefreshCw, 
-  AlertCircle,
-  FileText,
+import {
+  Users,
+  ShieldCheck,
+  CreditCard,
+  Bell,
+  Search,
+  CheckCircle2,
+  RefreshCw,
   UserCheck,
-  Building,
-  GraduationCap,
   UserPlus,
   KeyRound,
   Calendar,
   Clock,
   Check,
-  AlertTriangle
+  AlertTriangle,
+  LogOut,
+  Trash2,
+  RotateCcw,
+  MessageSquare,
+  ExternalLink,
 } from 'lucide-react';
 
 interface StudentRecord {
@@ -88,26 +89,134 @@ interface RegistrationWindowRecord {
   academicSession: { name: string };
 }
 
+interface OverdueStudentRecord {
+  id: string;
+  fullName: string;
+  applicationNo: string;
+  registrationCode: string | null;
+  collegeRollNo: string | null;
+  phone: string;
+  currentSemester: number;
+  courseName: string;
+  courseCode: string;
+  markedForDeletionAt: string | null;
+  daysElapsed: number;
+  daysRemaining: number;
+  purgeEligible: boolean;
+}
+
+interface PaymentLedgerItem {
+  id: string;
+  receiptNo: string;
+  title: string;
+  targetSemester: number;
+  paymentType: string;
+  paymentMethod: string;
+  status: string;
+  amount: number;
+  transactionRef: string | null;
+  paidAt: string | null;
+  createdAt: string;
+  studentName: string;
+  applicationNo: string;
+  collegeRollNo: string | null;
+  courseCode: string;
+}
+
+interface PaymentsSummary {
+  todayCollection: number;
+  todayTransactions: number;
+  totalCleared: number;
+  totalCompletedTransactions: number;
+  pendingReconciliations: number;
+}
+
+interface NoticeItem {
+  id: string;
+  title: string;
+  content: string;
+  category: string;
+  publishedAt: string;
+}
+
+interface GrievanceItem {
+  id: string;
+  ticketNo: string;
+  submittedBy: string;
+  name: string;
+  email: string;
+  phone: string;
+  category: string;
+  subject: string;
+  description: string;
+  status: 'PENDING' | 'IN_REVIEW' | 'RESOLVED' | 'REJECTED';
+  adminRemarks: string | null;
+  createdAt: string;
+  student?: {
+    fullName: string;
+    applicationNo: string;
+    collegeRollNo: string | null;
+  } | null;
+}
+
 export default function PrincipalSuperAdminPage() {
-  const [activeTab, setActiveTab] = useState<'students' | 'pending' | 'windows' | 'faculty' | 'fees' | 'notices'>('pending');
+  const router = useRouter();
+  const [activeTab, setActiveTab] = useState<'students' | 'pending' | 'windows' | 'faculty' | 'fees' | 'notices' | 'grievances'>('pending');
   
   // Data States
   const [students, setStudents] = useState<StudentRecord[]>([]);
   const [pendingList, setPendingList] = useState<PendingAdmission[]>([]);
   const [facultyList, setFacultyList] = useState<FacultyRecord[]>([]);
   const [windowsList, setWindowsList] = useState<RegistrationWindowRecord[]>([]);
+  const [overdueList, setOverdueList] = useState<OverdueStudentRecord[]>([]);
+  const [paymentsList, setPaymentsList] = useState<PaymentLedgerItem[]>([]);
+  const [paymentsSummary, setPaymentsSummary] = useState<PaymentsSummary>({
+    todayCollection: 0,
+    todayTransactions: 0,
+    totalCleared: 0,
+    totalCompletedTransactions: 0,
+    pendingReconciliations: 0,
+  });
+  const [noticesList, setNoticesList] = useState<NoticeItem[]>([]);
+  const [grievancesList, setGrievancesList] = useState<GrievanceItem[]>([]);
 
   // Loading States
   const [loading, setLoading] = useState(true);
   const [pendingLoading, setPendingLoading] = useState(false);
   const [facultyLoading, setFacultyLoading] = useState(false);
   const [windowsLoading, setWindowsLoading] = useState(false);
+  const [overdueLoading, setOverdueLoading] = useState(false);
+  const [paymentsLoading, setPaymentsLoading] = useState(false);
+  const [noticesLoading, setNoticesLoading] = useState(false);
+  const [grievancesLoading, setGrievancesLoading] = useState(false);
 
   // Filters & Action States
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedSemester, setSelectedSemester] = useState('all');
   const [actionNotice, setActionNotice] = useState<string | null>(null);
   const [approvingId, setApprovingId] = useState<string | null>(null);
+
+  // Notice Form State
+  const [noticeForm, setNoticeForm] = useState({
+    title: '',
+    category: 'General',
+    content: '',
+  });
+  const [isPublishingNotice, setIsPublishingNotice] = useState(false);
+
+  // Faculty Password Reset Modal State
+  const [resetPasswordTarget, setResetPasswordTarget] = useState<{
+    id: string;
+    fullName: string;
+    email: string;
+  } | null>(null);
+  const [newFacultyPassword, setNewFacultyPassword] = useState('');
+  const [isResettingPassword, setIsResettingPassword] = useState(false);
+
+  // Grievance Inline Remarks State
+  const [grievanceDrafts, setGrievanceDrafts] = useState<
+    Record<string, { status: GrievanceItem['status']; adminRemarks: string }>
+  >({});
 
   // Window Form State
   const [showWindowModal, setShowWindowModal] = useState(false);
@@ -137,6 +246,10 @@ export default function PrincipalSuperAdminPage() {
     fetchPendingAdmissions();
     fetchFaculty();
     fetchWindows();
+    fetchOverdue();
+    fetchPayments();
+    fetchNotices();
+    fetchGrievances();
   }, []);
 
   const fetchStudents = async () => {
@@ -207,6 +320,252 @@ export default function PrincipalSuperAdminPage() {
     }
   };
 
+  const fetchOverdue = async () => {
+    setOverdueLoading(true);
+    try {
+      const res = await fetch('/api/admissions?action=overdue');
+      const json = await res.json();
+      setOverdueList(json?.data || []);
+    } catch {
+      setOverdueList([]);
+    } finally {
+      setOverdueLoading(false);
+    }
+  };
+
+  const fetchPayments = async () => {
+    setPaymentsLoading(true);
+    try {
+      const res = await fetch('/api/payments?limit=50');
+      const json = await res.json();
+      if (json?.summary) setPaymentsSummary(json.summary);
+      setPaymentsList(json?.data || []);
+    } catch {
+      setPaymentsList([]);
+    } finally {
+      setPaymentsLoading(false);
+    }
+  };
+
+  const fetchNotices = async () => {
+    setNoticesLoading(true);
+    try {
+      const res = await fetch('/api/notices');
+      const json = await res.json();
+      setNoticesList(json?.data || []);
+    } catch {
+      setNoticesList([]);
+    } finally {
+      setNoticesLoading(false);
+    }
+  };
+
+  const fetchGrievances = async () => {
+    setGrievancesLoading(true);
+    try {
+      const res = await fetch('/api/grievances?all=true');
+      const json = await res.json();
+      const rows: GrievanceItem[] = json?.data || [];
+      setGrievancesList(rows);
+      const draftMap: Record<string, { status: GrievanceItem['status']; adminRemarks: string }> = {};
+      rows.forEach((g) => {
+        draftMap[g.id] = { status: g.status, adminRemarks: g.adminRemarks || '' };
+      });
+      setGrievanceDrafts(draftMap);
+    } catch {
+      setGrievancesList([]);
+    } finally {
+      setGrievancesLoading(false);
+    }
+  };
+
+  const handleSyncOverdue = async () => {
+    setActionNotice(null);
+    try {
+      const res = await fetch('/api/admissions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'SYNC_OVERDUE' }),
+      });
+      const json = await res.json();
+      if (json.success) {
+        setActionNotice(`Success: ${json.message}`);
+        fetchOverdue();
+        fetchStudents();
+      } else {
+        setActionNotice(`Error: ${json.error || 'Failed to sync overdue students.'}`);
+      }
+    } catch (err: unknown) {
+      setActionNotice(`Error: ${err instanceof Error ? err.message : 'Network error'}`);
+    }
+  };
+
+  const handleRestoreStudent = async (studentId: string) => {
+    setActionNotice(null);
+    try {
+      const res = await fetch('/api/admissions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'RESTORE_STUDENT', studentId }),
+      });
+      const json = await res.json();
+      if (json.success) {
+        setActionNotice(`Success: ${json.message}`);
+        fetchOverdue();
+        fetchStudents();
+      } else {
+        setActionNotice(`Error: ${json.error || 'Failed to restore student.'}`);
+      }
+    } catch (err: unknown) {
+      setActionNotice(`Error: ${err instanceof Error ? err.message : 'Network error'}`);
+    }
+  };
+
+  const handlePurgeExpired = async () => {
+    setActionNotice(null);
+    try {
+      const res = await fetch('/api/admissions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'PURGE_EXPIRED' }),
+      });
+      const json = await res.json();
+      if (json.success) {
+        setActionNotice(`Success: ${json.message}`);
+        fetchOverdue();
+        fetchStudents();
+      } else {
+        setActionNotice(`Error: ${json.error || 'Failed to purge expired records.'}`);
+      }
+    } catch (err: unknown) {
+      setActionNotice(`Error: ${err instanceof Error ? err.message : 'Network error'}`);
+    }
+  };
+
+  const handleResetFacultyPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!resetPasswordTarget) return;
+    setIsResettingPassword(true);
+    setActionNotice(null);
+    try {
+      const res = await fetch('/api/faculty', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          facultyId: resetPasswordTarget.id,
+          newPassword: newFacultyPassword,
+        }),
+      });
+      const json = await res.json();
+      if (json.success) {
+        setActionNotice(`Success: ${json.message}`);
+        setResetPasswordTarget(null);
+        setNewFacultyPassword('');
+      } else {
+        setActionNotice(`Error: ${json.error || 'Failed to reset faculty password.'}`);
+      }
+    } catch (err: unknown) {
+      setActionNotice(`Error: ${err instanceof Error ? err.message : 'Network error'}`);
+    } finally {
+      setIsResettingPassword(false);
+    }
+  };
+
+  const handleToggleFacultyStatus = async (facultyId: string, nextActive: boolean) => {
+    setActionNotice(null);
+    try {
+      const res = await fetch('/api/faculty', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ facultyId, isActive: nextActive }),
+      });
+      const json = await res.json();
+      if (json.success) {
+        setActionNotice(`Success: ${json.message}`);
+        fetchFaculty();
+      } else {
+        setActionNotice(`Error: ${json.error || 'Failed to update faculty status.'}`);
+      }
+    } catch (err: unknown) {
+      setActionNotice(`Error: ${err instanceof Error ? err.message : 'Network error'}`);
+    }
+  };
+
+  const handlePublishNotice = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsPublishingNotice(true);
+    setActionNotice(null);
+    try {
+      const res = await fetch('/api/notices', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(noticeForm),
+      });
+      const json = await res.json();
+      if (json.success) {
+        setActionNotice(`Success: ${json.message}`);
+        setNoticeForm({ title: '', category: 'General', content: '' });
+        fetchNotices();
+      } else {
+        setActionNotice(`Error: ${json.error || 'Failed to publish notice.'}`);
+      }
+    } catch (err: unknown) {
+      setActionNotice(`Error: ${err instanceof Error ? err.message : 'Network error'}`);
+    } finally {
+      setIsPublishingNotice(false);
+    }
+  };
+
+  const handleDeleteNotice = async (id: string) => {
+    setActionNotice(null);
+    try {
+      const res = await fetch(`/api/notices?id=${encodeURIComponent(id)}`, { method: 'DELETE' });
+      const json = await res.json();
+      if (json.success) {
+        setActionNotice(`Success: ${json.message}`);
+        fetchNotices();
+      } else {
+        setActionNotice(`Error: ${json.error || 'Failed to delete notice.'}`);
+      }
+    } catch (err: unknown) {
+      setActionNotice(`Error: ${err instanceof Error ? err.message : 'Network error'}`);
+    }
+  };
+
+  const handleUpdateGrievance = async (ticketId: string) => {
+    const draft = grievanceDrafts[ticketId];
+    if (!draft) return;
+    setActionNotice(null);
+    try {
+      const res = await fetch('/api/grievances', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: ticketId,
+          status: draft.status,
+          adminRemarks: draft.adminRemarks,
+        }),
+      });
+      const json = await res.json();
+      if (json.success) {
+        setActionNotice(`Success: ${json.message}`);
+        fetchGrievances();
+      } else {
+        setActionNotice(`Error: ${json.error || 'Failed to update grievance ticket.'}`);
+      }
+    } catch (err: unknown) {
+      setActionNotice(`Error: ${err instanceof Error ? err.message : 'Network error'}`);
+    }
+  };
+
+  const handleLogout = async () => {
+    try {
+      await fetch('/api/auth/logout', { method: 'POST' });
+    } finally {
+      router.push('/login');
+    }
+  };
+
   // Super Admin Final Permission: Approve Sem 1 Admission & Allocate Stream Roll No
   const handleApproveAdmission = async (student: PendingAdmission) => {
     setApprovingId(student.id);
@@ -230,8 +589,8 @@ export default function PrincipalSuperAdminPage() {
       } else {
         setActionNotice(`Error: ${json.error || 'Failed to approve candidate.'}`);
       }
-    } catch (err: any) {
-      setActionNotice(`Error: ${err.message}`);
+    } catch (err: unknown) {
+      setActionNotice(`Error: ${err instanceof Error ? err.message : 'Network error'}`);
     } finally {
       setApprovingId(null);
     }
@@ -263,8 +622,8 @@ export default function PrincipalSuperAdminPage() {
       } else {
         setActionNotice(`Error: ${json.error || 'Failed to configure window.'}`);
       }
-    } catch (err: any) {
-      setActionNotice(`Error: ${err.message}`);
+    } catch (err: unknown) {
+      setActionNotice(`Error: ${err instanceof Error ? err.message : 'Network error'}`);
     }
   };
 
@@ -298,8 +657,8 @@ export default function PrincipalSuperAdminPage() {
       } else {
         setActionNotice(`Error: ${json.error || 'Failed to create faculty account.'}`);
       }
-    } catch (err: any) {
-      setActionNotice(`Error: ${err.message || 'Network error'}`);
+    } catch (err: unknown) {
+      setActionNotice(`Error: ${err instanceof Error ? err.message : 'Network error'}`);
     } finally {
       setIsCreatingFaculty(false);
     }
@@ -341,15 +700,29 @@ export default function PrincipalSuperAdminPage() {
           </div>
 
           <div className="flex items-center gap-2">
-            <span className="hidden sm:inline-block text-xs font-mono bg-slate-100 text-slate-700 px-2.5 py-1 rounded border border-slate-200">
+            <span className="hidden md:inline-block text-xs font-mono bg-slate-100 text-slate-700 px-2.5 py-1 rounded border border-slate-200">
               mkrcollege@gmail.com
             </span>
+            <Link
+              href="/admin/students"
+              className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-semibold text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-lg transition"
+            >
+              <ExternalLink className="w-3.5 h-3.5" />
+              Directory &amp; Promote
+            </Link>
             <Link
               href="/"
               className="px-3 py-1.5 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition"
             >
               Exit to Home
             </Link>
+            <button
+              onClick={handleLogout}
+              className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-semibold text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 rounded-lg transition"
+            >
+              <LogOut className="w-3.5 h-3.5" />
+              Sign Out
+            </button>
           </div>
         </div>
       </header>
@@ -428,13 +801,39 @@ export default function PrincipalSuperAdminPage() {
           >
             <Bell className="w-4 h-4" /> Notice Board
           </button>
+
+          <button
+            onClick={() => setActiveTab('grievances')}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition ${
+              activeTab === 'grievances'
+                ? 'bg-[#800000] text-white shadow-xs'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+            }`}
+          >
+            <MessageSquare className="w-4 h-4" /> Grievances
+            {grievancesList.filter((g) => g.status === 'PENDING').length > 0 && (
+              <span className="ml-1 px-1.5 py-0.2 rounded-full bg-amber-100 text-amber-800 text-[10px] font-black">
+                {grievancesList.filter((g) => g.status === 'PENDING').length}
+              </span>
+            )}
+          </button>
         </div>
 
         {/* Action Notice Toast */}
         {actionNotice && (
-          <div className="mb-4 p-3.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs flex items-center justify-between">
+          <div
+            className={`mb-4 p-3.5 rounded-xl border text-xs flex items-center justify-between ${
+              actionNotice.startsWith('Error:')
+                ? 'bg-rose-50 border-rose-200 text-rose-800'
+                : 'bg-emerald-50 border-emerald-200 text-emerald-800'
+            }`}
+          >
             <div className="flex items-center gap-2">
-              <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+              {actionNotice.startsWith('Error:') ? (
+                <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0" />
+              ) : (
+                <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+              )}
               <span>{actionNotice}</span>
             </div>
             <button
@@ -664,6 +1063,101 @@ export default function PrincipalSuperAdminPage() {
                 </table>
               </div>
             </div>
+
+            {/* 30-Day Overdue Deletion Queue */}
+            <div className="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
+              <div className="p-4 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-rose-50/50">
+                <div>
+                  <h4 className="text-sm font-bold text-rose-800 uppercase tracking-wider">
+                    Overdue &amp; 30-Day Deletion Queue
+                  </h4>
+                  <p className="text-xs text-slate-600 mt-0.5">
+                    Students who missed expired semester registration deadlines enter a 30-day retention grace period before archival purge.
+                  </p>
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    onClick={handleSyncOverdue}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-amber-600 text-white hover:bg-amber-700 transition"
+                  >
+                    <RefreshCw className={`w-3.5 h-3.5 ${overdueLoading ? 'animate-spin' : ''}`} />
+                    Sync Overdue Windows
+                  </button>
+                  <button
+                    onClick={handlePurgeExpired}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-rose-700 text-white hover:bg-rose-800 transition"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    Purge Expired (&gt;30 Days)
+                  </button>
+                </div>
+              </div>
+
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="bg-slate-50 border-b border-slate-200 text-xs uppercase text-slate-500 font-bold">
+                      <th className="p-3">Student &amp; Program</th>
+                      <th className="p-3">Reg Code / Roll</th>
+                      <th className="p-3">Current Sem</th>
+                      <th className="p-3">Grace Countdown</th>
+                      <th className="p-3 text-right">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 text-xs">
+                    {overdueList.length > 0 ? (
+                      overdueList.map((o) => (
+                        <tr key={o.id} className="hover:bg-slate-50">
+                          <td className="p-3">
+                            <div className="font-bold text-slate-900">{o.fullName}</div>
+                            <div className="text-[11px] text-slate-500">
+                              {o.courseName} • {o.phone}
+                            </div>
+                          </td>
+                          <td className="p-3 font-mono text-slate-700">
+                            <div>{o.registrationCode || o.applicationNo}</div>
+                            {o.collegeRollNo && (
+                              <div className="text-[11px] text-slate-500">{o.collegeRollNo}</div>
+                            )}
+                          </td>
+                          <td className="p-3 font-semibold text-slate-800">
+                            Semester {o.currentSemester}
+                          </td>
+                          <td className="p-3">
+                            <span
+                              className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold ${
+                                o.purgeEligible
+                                  ? 'bg-rose-100 text-rose-800 border border-rose-200'
+                                  : 'bg-amber-100 text-amber-800 border border-amber-200'
+                              }`}
+                            >
+                              {o.purgeEligible
+                                ? `Expired (${o.daysElapsed}d elapsed)`
+                                : `${o.daysRemaining}d remaining (${o.daysElapsed}d elapsed)`}
+                            </span>
+                          </td>
+                          <td className="p-3 text-right">
+                            <button
+                              onClick={() => handleRestoreStudent(o.id)}
+                              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 transition"
+                            >
+                              <RotateCcw className="w-3 h-3" />
+                              Restore Exemption
+                            </button>
+                          </td>
+                        </tr>
+                      ))
+                    ) : (
+                      <tr>
+                        <td colSpan={5} className="text-center py-8 text-slate-400">
+                          No students currently flagged in the 30-day overdue deletion queue.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
           </div>
         )}
 
@@ -684,18 +1178,27 @@ export default function PrincipalSuperAdminPage() {
                 />
               </div>
 
-              <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+              <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto justify-end">
                 <select
                   value={selectedSemester}
                   onChange={(e) => setSelectedSemester(e.target.value)}
                   className="text-xs font-semibold px-3 py-2 border border-slate-200 rounded-lg bg-white"
                 >
                   <option value="all">All Semesters</option>
-                  <option value="1">Semester 1</option>
-                  <option value="2">Semester 2</option>
-                  <option value="3">Semester 3</option>
-                  <option value="4">Semester 4</option>
+                  {[1, 2, 3, 4, 5, 6, 7, 8].map((sem) => (
+                    <option key={sem} value={String(sem)}>
+                      Semester {sem}
+                    </option>
+                  ))}
                 </select>
+
+                <Link
+                  href="/admin/students"
+                  className="inline-flex items-center gap-1 px-3 py-2 text-xs font-semibold bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200 rounded-lg transition"
+                >
+                  <ExternalLink className="w-3.5 h-3.5" />
+                  Full Directory
+                </Link>
 
                 <button
                   onClick={fetchStudents}
@@ -970,22 +1473,44 @@ export default function PrincipalSuperAdminPage() {
                             <div className="text-[11px] text-slate-500">{f.phone}</div>
                           </td>
                           <td className="p-3">
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-                              Active
+                            <span
+                              className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold border ${
+                                f.isActive
+                                  ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                  : 'bg-rose-50 text-rose-700 border-rose-200'
+                              }`}
+                            >
+                              <span
+                                className={`w-1.5 h-1.5 rounded-full ${
+                                  f.isActive ? 'bg-emerald-500' : 'bg-rose-500'
+                                }`}
+                              ></span>
+                              {f.isActive ? 'Active' : 'Disabled'}
                             </span>
                           </td>
-                          <td className="p-3 text-right">
+                          <td className="p-3 text-right space-x-1.5">
                             <button
                               onClick={() => {
-                                const newPass = prompt(`Reset Password for ${f.fullName} (${f.email}):`);
-                                if (newPass) {
-                                  alert(`Password for ${f.fullName} updated successfully.`);
-                                }
+                                setResetPasswordTarget({
+                                  id: f.id,
+                                  fullName: f.fullName,
+                                  email: f.email,
+                                });
+                                setNewFacultyPassword('');
                               }}
                               className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-[11px] rounded-lg transition inline-flex items-center gap-1"
                             >
                               <KeyRound className="w-3 h-3 text-slate-500" /> Reset Password
+                            </button>
+                            <button
+                              onClick={() => handleToggleFacultyStatus(f.id, !f.isActive)}
+                              className={`px-2.5 py-1 font-semibold text-[11px] rounded-lg transition ${
+                                f.isActive
+                                  ? 'bg-rose-50 text-rose-700 hover:bg-rose-100 border border-rose-200'
+                                  : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200'
+                              }`}
+                            >
+                              {f.isActive ? 'Disable' : 'Activate'}
                             </button>
                           </td>
                         </tr>
@@ -1017,39 +1542,105 @@ export default function PrincipalSuperAdminPage() {
         {/* TAB 5: FINANCIAL & FEE LEDGER                                             */}
         {/* ========================================================================= */}
         {activeTab === 'fees' && (
-          <div className="bg-white rounded-xl border border-slate-200 shadow-xs p-6">
-            <h3 className="font-bold text-sm text-[#800000] uppercase tracking-wider mb-2">
-              Fee Collections & Reconciliations
-            </h3>
-            <p className="text-xs text-slate-500 mb-6">
-              Track daily fee clearances, challan receipts, and payment gateway settlement records.
-            </p>
+          <div className="bg-white rounded-xl border border-slate-200 shadow-xs p-6 space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div>
+                <h3 className="font-bold text-sm text-[#800000] uppercase tracking-wider mb-1">
+                  Fee Collections &amp; Reconciliations
+                </h3>
+                <p className="text-xs text-slate-500">
+                  Live database settlement records for Semester 1 admissions and Semester 2–8 direct progressions.
+                </p>
+              </div>
+              <button
+                onClick={fetchPayments}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border border-slate-200 hover:bg-slate-50 text-slate-700 self-start"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${paymentsLoading ? 'animate-spin' : ''}`} />
+                Refresh Ledger
+              </button>
+            </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div className="p-4 rounded-xl bg-slate-50 border border-slate-200">
                 <span className="text-[11px] font-bold text-slate-500 uppercase">Today&apos;s Collections</span>
-                <p className="text-xl font-bold text-slate-900 mt-1">₹0.00</p>
-                <span className="text-[10px] text-slate-400">0 transactions recorded today</span>
+                <p className="text-xl font-bold text-slate-900 mt-1">
+                  ₹{paymentsSummary.todayCollection.toLocaleString('en-IN')}
+                </p>
+                <span className="text-[10px] text-slate-500">
+                  {paymentsSummary.todayTransactions} transaction(s) recorded today
+                </span>
               </div>
               <div className="p-4 rounded-xl bg-slate-50 border border-slate-200">
                 <span className="text-[11px] font-bold text-slate-500 uppercase">Semester Fees Cleared</span>
-                <p className="text-xl font-bold text-slate-900 mt-1">₹0.00</p>
-                <span className="text-[10px] text-slate-400">Current Academic Session</span>
+                <p className="text-xl font-bold text-slate-900 mt-1">
+                  ₹{paymentsSummary.totalCleared.toLocaleString('en-IN')}
+                </p>
+                <span className="text-[10px] text-slate-500">
+                  {paymentsSummary.totalCompletedTransactions} completed payment(s)
+                </span>
               </div>
               <div className="p-4 rounded-xl bg-slate-50 border border-slate-200">
                 <span className="text-[11px] font-bold text-slate-500 uppercase">Pending Reconciliations</span>
-                <p className="text-xl font-bold text-emerald-600 mt-1">0 Pending</p>
-                <span className="text-[10px] text-slate-400">All gateways synced</span>
+                <p className="text-xl font-bold text-emerald-700 mt-1">
+                  {paymentsSummary.pendingReconciliations} Pending
+                </p>
+                <span className="text-[10px] text-slate-500">Live MySQL FeePayment state</span>
               </div>
             </div>
 
-            <div className="text-center py-10 border-2 border-dashed border-slate-200 rounded-xl text-slate-400 text-xs">
-              <CreditCard className="w-8 h-8 mx-auto mb-2 text-slate-300" />
-              <p className="font-semibold text-slate-600">No Transaction Records Yet</p>
-              <p className="text-[11px] text-slate-400 mt-1">
-                Fee payments submitted by students or approved by accounts will be recorded here automatically.
-              </p>
-            </div>
+            {paymentsList.length > 0 ? (
+              <div className="overflow-x-auto border border-slate-200 rounded-xl">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="bg-slate-50 border-b border-slate-200 text-xs uppercase text-slate-500 font-bold">
+                      <th className="p-3">Receipt No</th>
+                      <th className="p-3">Student &amp; Program</th>
+                      <th className="p-3">Semester / Type</th>
+                      <th className="p-3">Amount &amp; Mode</th>
+                      <th className="p-3 text-right">Date &amp; Status</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 text-xs">
+                    {paymentsList.map((p) => (
+                      <tr key={p.id} className="hover:bg-slate-50">
+                        <td className="p-3 font-mono font-semibold text-slate-900">{p.receiptNo}</td>
+                        <td className="p-3">
+                          <div className="font-bold text-slate-800">{p.studentName}</div>
+                          <div className="text-[11px] text-slate-500">
+                            {p.collegeRollNo || p.applicationNo} • {p.courseCode}
+                          </div>
+                        </td>
+                        <td className="p-3">
+                          <span className="font-semibold text-slate-800">Sem {p.targetSemester}</span>
+                          <div className="text-[11px] text-slate-500">{p.paymentType}</div>
+                        </td>
+                        <td className="p-3">
+                          <div className="font-bold text-emerald-700">₹{p.amount.toLocaleString('en-IN')}</div>
+                          <div className="text-[11px] text-slate-500">{p.paymentMethod}</div>
+                        </td>
+                        <td className="p-3 text-right">
+                          <span className="inline-flex px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 font-bold text-[11px]">
+                            {p.status}
+                          </span>
+                          <div className="text-[11px] text-slate-400 mt-0.5">
+                            {new Date(p.paidAt || p.createdAt).toLocaleDateString('en-IN')}
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <div className="text-center py-10 border-2 border-dashed border-slate-200 rounded-xl text-slate-400 text-xs">
+                <CreditCard className="w-8 h-8 mx-auto mb-2 text-slate-300" />
+                <p className="font-semibold text-slate-600">No Transaction Records Yet</p>
+                <p className="text-[11px] text-slate-400 mt-1">
+                  Fee payments submitted by students during admission or semester promotion appear here automatically.
+                </p>
+              </div>
+            )}
           </div>
         )}
 
@@ -1057,22 +1648,257 @@ export default function PrincipalSuperAdminPage() {
         {/* TAB 6: NOTICE BOARD MANAGEMENT                                           */}
         {/* ========================================================================= */}
         {activeTab === 'notices' && (
-          <div className="bg-white rounded-xl border border-slate-200 shadow-xs p-6">
-            <div className="flex justify-between items-center mb-4 border-b border-slate-100 pb-3">
+          <div className="space-y-4">
+            <div className="bg-white rounded-xl border border-slate-200 shadow-xs p-6">
+              <div className="flex justify-between items-center mb-4 border-b border-slate-100 pb-3">
+                <div>
+                  <h3 className="font-bold text-sm text-[#800000] uppercase tracking-wider">
+                    Official College Notices
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    Publish circulars visible on the college homepage ticker and ERP notices feed.
+                  </p>
+                </div>
+                <button
+                  onClick={fetchNotices}
+                  className="p-2 border border-slate-200 hover:bg-slate-100 rounded-lg text-slate-600"
+                >
+                  <RefreshCw className={`w-4 h-4 ${noticesLoading ? 'animate-spin' : ''}`} />
+                </button>
+              </div>
+
+              <form onSubmit={handlePublishNotice} className="grid grid-cols-1 sm:grid-cols-4 gap-3 text-xs mb-6">
+                <div className="sm:col-span-2">
+                  <label className="block font-bold text-slate-700 mb-1">Notice Title</label>
+                  <input
+                    type="text"
+                    required
+                    value={noticeForm.title}
+                    onChange={(e) => setNoticeForm({ ...noticeForm, title: e.target.value })}
+                    placeholder="e.g. BA/B.Com Sem-3 Registration Window Open"
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg"
+                  />
+                </div>
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">Category</label>
+                  <select
+                    value={noticeForm.category}
+                    onChange={(e) => setNoticeForm({ ...noticeForm, category: e.target.value })}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg bg-white"
+                  >
+                    <option value="General">General</option>
+                    <option value="Admission">Admission</option>
+                    <option value="Academic">Academic</option>
+                    <option value="Exam">Exam</option>
+                  </select>
+                </div>
+                <div className="flex items-end">
+                  <button
+                    type="submit"
+                    disabled={isPublishingNotice}
+                    className="w-full px-4 py-2 font-bold text-white bg-[#800000] hover:bg-[#5C0000] rounded-lg disabled:opacity-50"
+                  >
+                    {isPublishingNotice ? 'Publishing...' : 'Publish Circular'}
+                  </button>
+                </div>
+                <div className="sm:col-span-4">
+                  <label className="block font-bold text-slate-700 mb-1">Circular Details</label>
+                  <textarea
+                    required
+                    rows={2}
+                    value={noticeForm.content}
+                    onChange={(e) => setNoticeForm({ ...noticeForm, content: e.target.value })}
+                    placeholder="Full notification text, dates, and instructions..."
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg"
+                  />
+                </div>
+              </form>
+
+              {noticesList.length > 0 ? (
+                <div className="space-y-2.5">
+                  {noticesList.map((n) => (
+                    <div
+                      key={n.id}
+                      className="p-3.5 rounded-xl border border-slate-200 bg-slate-50/70 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+                    >
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-[#800000]/10 text-[#800000]">
+                            {n.category}
+                          </span>
+                          <span className="font-bold text-slate-900 text-xs">{n.title}</span>
+                          <span className="text-[11px] text-slate-400">
+                            {new Date(n.publishedAt).toLocaleDateString('en-IN')}
+                          </span>
+                        </div>
+                        <p className="text-xs text-slate-600">{n.content}</p>
+                      </div>
+                      <button
+                        onClick={() => handleDeleteNotice(n.id)}
+                        className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold bg-rose-50 text-rose-700 hover:bg-rose-100 border border-rose-200 self-start sm:self-center shrink-0"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                        Delete
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-10 border-2 border-dashed border-slate-200 rounded-xl text-slate-400 text-xs">
+                  <Bell className="w-8 h-8 mx-auto mb-2 text-slate-300" />
+                  <p className="font-semibold text-slate-600">No Active Custom Circulars</p>
+                  <p className="text-[11px] text-slate-400 mt-1">
+                    Publish a circular above to display it live on the homepage notice ticker.
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* ========================================================================= */}
+        {/* TAB 7: GRIEVANCES & HELPDESK TICKETS                                      */}
+        {/* ========================================================================= */}
+        {activeTab === 'grievances' && (
+          <div className="bg-white rounded-xl border border-slate-200 shadow-xs p-6 space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <div>
                 <h3 className="font-bold text-sm text-[#800000] uppercase tracking-wider">
-                  Official College Notices
+                  Student &amp; Public Grievance Redressal Desk
                 </h3>
-                <p className="text-xs text-slate-500">Publish circulars visible across the public ERP portal and student dashboards.</p>
+                <p className="text-xs text-slate-500">
+                  Review submitted tickets from Helpdesk &amp; Contact portals and post official resolution remarks.
+                </p>
               </div>
+              <button
+                onClick={fetchGrievances}
+                className="p-2 border border-slate-200 hover:bg-slate-100 rounded-lg text-slate-600"
+              >
+                <RefreshCw className={`w-4 h-4 ${grievancesLoading ? 'animate-spin' : ''}`} />
+              </button>
             </div>
 
-            <div className="text-center py-10 border-2 border-dashed border-slate-200 rounded-xl text-slate-400 text-xs">
-              <Bell className="w-8 h-8 mx-auto mb-2 text-slate-300" />
-              <p className="font-semibold text-slate-600">No Active Custom Circulars</p>
-              <p className="text-[11px] text-slate-400 mt-1">
-                Notices published here are displayed across the college homepage notice ticker.
+            {grievancesList.length > 0 ? (
+              <div className="space-y-3">
+                {grievancesList.map((g) => {
+                  const draft = grievanceDrafts[g.id] || {
+                    status: g.status,
+                    adminRemarks: g.adminRemarks || '',
+                  };
+                  return (
+                    <div
+                      key={g.id}
+                      className="p-4 rounded-xl border border-slate-200 bg-slate-50/50 space-y-2.5 text-xs"
+                    >
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="font-mono font-bold text-[#800000]">{g.ticketNo}</span>
+                          <span className="px-2 py-0.5 rounded bg-slate-200 text-slate-700 font-semibold text-[11px]">
+                            {g.category}
+                          </span>
+                          <span className="font-bold text-slate-900">{g.subject}</span>
+                        </div>
+                        <span className="text-[11px] text-slate-500">
+                          By {g.name} ({g.phone}) • {new Date(g.createdAt).toLocaleDateString('en-IN')}
+                        </span>
+                      </div>
+                      <p className="text-slate-700 whitespace-pre-line">{g.description}</p>
+                      <div className="flex flex-col sm:flex-row gap-2 pt-2 border-t border-slate-200">
+                        <select
+                          value={draft.status}
+                          onChange={(e) =>
+                            setGrievanceDrafts({
+                              ...grievanceDrafts,
+                              [g.id]: {
+                                ...draft,
+                                status: e.target.value as GrievanceItem['status'],
+                              },
+                            })
+                          }
+                          className="px-3 py-1.5 border border-slate-300 rounded-lg bg-white font-semibold"
+                        >
+                          <option value="PENDING">PENDING</option>
+                          <option value="IN_REVIEW">IN_REVIEW</option>
+                          <option value="RESOLVED">RESOLVED</option>
+                          <option value="REJECTED">REJECTED</option>
+                        </select>
+                        <input
+                          type="text"
+                          value={draft.adminRemarks}
+                          onChange={(e) =>
+                            setGrievanceDrafts({
+                              ...grievanceDrafts,
+                              [g.id]: { ...draft, adminRemarks: e.target.value },
+                            })
+                          }
+                          placeholder="Enter official Principal/Admin remark..."
+                          className="flex-1 px-3 py-1.5 border border-slate-300 rounded-lg bg-white"
+                        />
+                        <button
+                          onClick={() => handleUpdateGrievance(g.id)}
+                          className="px-4 py-1.5 bg-[#800000] hover:bg-[#5C0000] text-white font-bold rounded-lg transition shrink-0"
+                        >
+                          Update Ticket
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="text-center py-10 border-2 border-dashed border-slate-200 rounded-xl text-slate-400 text-xs">
+                <MessageSquare className="w-8 h-8 mx-auto mb-2 text-slate-300" />
+                <p className="font-semibold text-slate-600">No Grievance Tickets Logged Yet</p>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* FACULTY PASSWORD RESET MODAL */}
+        {resetPasswordTarget && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+            <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl border border-slate-200">
+              <h3 className="text-sm font-bold text-[#800000] uppercase tracking-wider mb-1">
+                Reset Faculty Password
+              </h3>
+              <p className="text-xs text-slate-500 mb-4">
+                Set a new portal password for <strong>{resetPasswordTarget.fullName}</strong> ({resetPasswordTarget.email}).
               </p>
+              <form onSubmit={handleResetFacultyPassword} className="space-y-3 text-xs">
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">
+                    New Password (minimum 6 characters)
+                  </label>
+                  <input
+                    type="password"
+                    required
+                    minLength={6}
+                    value={newFacultyPassword}
+                    onChange={(e) => setNewFacultyPassword(e.target.value)}
+                    placeholder="Enter new strong password"
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-1 focus:ring-[#800000]"
+                  />
+                </div>
+                <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setResetPasswordTarget(null);
+                      setNewFacultyPassword('');
+                    }}
+                    className="px-4 py-2 font-bold text-slate-600 hover:bg-slate-100 rounded-lg"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isResettingPassword}
+                    className="px-5 py-2 font-bold text-white bg-[#800000] hover:bg-[#5C0000] rounded-lg disabled:opacity-50"
+                  >
+                    {isResettingPassword ? 'Updating...' : 'Save New Password'}
+                  </button>
+                </div>
+              </form>
             </div>
           </div>
         )}
