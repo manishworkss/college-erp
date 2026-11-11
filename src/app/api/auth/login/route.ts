@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { verifyPassword, signAuthToken, AUTH_COOKIE_NAME, TokenPayload } from '@/lib/auth';
+import { verifyPassword, signAuthToken, TokenPayload } from '@/lib/auth';
+import { getAuthCookieOptions } from '@/lib/auth-server';
 
 export async function POST(request: NextRequest) {
   try {
@@ -17,9 +18,6 @@ export async function POST(request: NextRequest) {
     const cleanUsername = String(username).trim();
     const cleanPassword = String(password);
 
-    // -------------------------------------------------------------------------
-    // 1. ATTEMPT REAL DATABASE LOOKUP
-    // -------------------------------------------------------------------------
     let authenticatedUser: TokenPayload | null = null;
     let redirectUrl = '/';
 
@@ -28,10 +26,7 @@ export async function POST(request: NextRequest) {
         redirectUrl = '/admin/principal';
         const user = await prisma.user.findFirst({
           where: {
-            OR: [
-              { email: cleanUsername },
-              { phone: cleanUsername },
-            ],
+            OR: [{ email: cleanUsername }, { phone: cleanUsername }],
             role: { in: ['SUPER_ADMIN', 'PRINCIPAL'] },
             isActive: true,
           },
@@ -42,7 +37,7 @@ export async function POST(request: NextRequest) {
           if (isValid) {
             authenticatedUser = {
               userId: user.id,
-              role: user.role as any,
+              role: user.role as TokenPayload['role'],
               name: user.name,
               email: user.email,
               phone: user.phone || undefined,
@@ -63,7 +58,7 @@ export async function POST(request: NextRequest) {
           include: { user: true },
         });
 
-        if (facultyMember && facultyMember.user) {
+        if (facultyMember && facultyMember.user && facultyMember.user.isActive) {
           const isValid = await verifyPassword(cleanPassword, facultyMember.user.passwordHash);
           if (isValid) {
             authenticatedUser = {
@@ -82,6 +77,7 @@ export async function POST(request: NextRequest) {
           where: {
             OR: [
               { collegeRollNo: cleanUsername },
+              { registrationCode: cleanUsername },
               { applicationNo: cleanUsername },
               { universityRegNo: cleanUsername },
               { phone: cleanUsername },
@@ -105,25 +101,26 @@ export async function POST(request: NextRequest) {
               };
             }
           } else {
-            // Unregistered student direct phone verification
-            authenticatedUser = {
-              userId: student.id,
-              studentId: student.id,
-              role: 'STUDENT',
-              name: student.fullName,
-              email: student.email,
-              phone: student.phone,
-            };
+            // Students without a separate User login verify via Date of Birth (YYYY-MM-DD) or registered phone
+            const dobIso = student.dateOfBirth.toISOString().split('T')[0];
+            if (cleanPassword === dobIso || cleanPassword === student.phone) {
+              authenticatedUser = {
+                userId: student.id,
+                studentId: student.id,
+                role: 'STUDENT',
+                name: student.fullName,
+                email: student.email,
+                phone: student.phone,
+              };
+            }
           }
         }
       }
     } catch (dbError) {
-      console.warn('Database query skipped or offline, falling back to institutional demo check:', dbError);
+      console.warn('Database unavailable during login lookup:', dbError);
     }
 
-    // -------------------------------------------------------------------------
-    // 2. FIXED SUPER ADMIN VERIFICATION & STRICT REAL-DATA ENFORCEMENT
-    // -------------------------------------------------------------------------
+    // Super Admin fixed institutional check (allows initial access before seed if DB is bootstrapping)
     if (!authenticatedUser) {
       if (role === 'SUPER_ADMIN') {
         if (cleanUsername.toLowerCase() === 'mkrcollege@gmail.com' && cleanPassword === 'Mkr@arvind98') {
@@ -139,7 +136,8 @@ export async function POST(request: NextRequest) {
           return NextResponse.json(
             {
               success: false,
-              error: 'Invalid Super Admin credentials. Username must be mkrcollege@gmail.com with your assigned administrative password.',
+              error:
+                'Invalid Super Admin credentials. Username must be mkrcollege@gmail.com with your assigned administrative password.',
             },
             { status: 401 }
           );
@@ -148,7 +146,8 @@ export async function POST(request: NextRequest) {
         return NextResponse.json(
           {
             success: false,
-            error: 'Faculty account not found. Faculty accounts can only be created by the Super Admin in the Admin Console.',
+            error:
+              'Invalid faculty credentials or inactive account. Faculty accounts are issued by Super Admin.',
           },
           { status: 401 }
         );
@@ -156,7 +155,8 @@ export async function POST(request: NextRequest) {
         return NextResponse.json(
           {
             success: false,
-            error: 'Student record not found. Please submit your application via the Online Admission Form first.',
+            error:
+              'Invalid student credentials. Use your Roll No / Reg Code / App No with your Date of Birth (YYYY-MM-DD) or registered mobile as password.',
           },
           { status: 401 }
         );
@@ -173,9 +173,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // -------------------------------------------------------------------------
-    // 3. GENERATE SIGNED TOKEN & SET HTTP-ONLY COOKIE
-    // -------------------------------------------------------------------------
     const token = signAuthToken(authenticatedUser);
 
     const response = NextResponse.json({
@@ -186,17 +183,12 @@ export async function POST(request: NextRequest) {
     });
 
     response.cookies.set({
-      name: AUTH_COOKIE_NAME,
+      ...getAuthCookieOptions(request, 60 * 60 * 24 * 7),
       value: token,
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      path: '/',
-      maxAge: 60 * 60 * 24 * 7, // 7 days
     });
 
     return response;
-  } catch (error: any) {
+  } catch (error) {
     console.error('Login error:', error);
     return NextResponse.json(
       { success: false, error: 'Authentication service encountered an unexpected error.' },
@@ -204,4 +196,3 @@ export async function POST(request: NextRequest) {
     );
   }
 }
-

@@ -1,27 +1,41 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { StudentStatus, PaymentMethod, PaymentStatus, PaymentType } from '@prisma/client';
+import {
+  StudentStatus,
+  PaymentMethod,
+  PaymentStatus,
+  PaymentType,
+  SemesterRecordStatus,
+} from '@prisma/client';
 import { z } from 'zod';
-
-// =========================================================================
-// VALIDATION SCHEMAS
-// =========================================================================
+import {
+  computeOverdueRetention,
+  evaluateRegistrationWindow,
+  MAX_SEMESTERS,
+  normalizeWindowDates,
+  OVERDUE_GRACE_DAYS,
+} from '@/lib/college-config';
+import {
+  enrollStudentSubjects,
+  ensureAcademicSessionAndCourse,
+  generateSafeAdmissionCodes,
+  generateSafeCollegeRollNo,
+  getEffectiveSemesterFee,
+} from '@/lib/services/academic-structure';
 
 const freshAdmissionSchema = z.object({
-  // Basic Info
   firstName: z.string().min(2, 'First Name required'),
-  middleName: z.string().optional(),
+  middleName: z.string().optional().default(''),
   lastName: z.string().min(1, 'Last Name required'),
   gender: z.string(),
   dob: z.string().min(10, 'Valid Date of Birth required'),
   phone: z.string().min(10, '10-digit mobile required'),
-  email: z.string().email().or(z.literal('')),
+  email: z.string().email().or(z.literal('')).optional().default(''),
   category: z.string().default('General'),
   religion: z.string().default('Hinduism'),
   maritalStatus: z.string().default('Unmarried'),
 
-  // Program & CBCS
-  faculty: z.string(), // "Social Science", "Humanities", "Commerce"
+  faculty: z.string(),
   mjcSubject: z.string(),
   micSubject: z.string(),
   mdcSubject: z.string(),
@@ -29,48 +43,37 @@ const freshAdmissionSchema = z.object({
   secSubject: z.string().optional(),
   vacSubject: z.string().optional(),
 
-  // Parents
   fatherName: z.string().min(2, 'Father Name required'),
-  fatherPhone: z.string().optional(),
+  fatherPhone: z.string().optional().default(''),
   motherName: z.string().min(2, 'Mother Name required'),
 
-  // Academic Records
-  matricBoard: z.string().optional(),
-  matricPassingYear: z.string().optional(),
-  matricRollNum: z.string().optional(),
-  matricMarks: z.string().optional(),
-  matricPercent: z.string().optional(),
-  matricSchool: z.string().optional(),
-
-  interBoard: z.string().optional(),
-  interPassingYear: z.string().optional(),
-  interRollNum: z.string().optional(),
-  interMarks: z.string().optional(),
-  interPercent: z.string().optional(),
-  interSchool: z.string().optional(),
-
-  // Identifiers & Address
-  aadhaarNo: z.string().optional(),
-  apaarNo: z.string().optional(),
+  aadhaarNo: z.string().optional().default(''),
+  apaarNo: z.string().optional().default(''),
   currentAddress: z.string().min(5, 'Address required'),
-  permanentAddress: z.string().optional(),
-  universityAppNo: z.string().optional(),
+  permanentAddress: z.string().optional().default(''),
+  universityAppNo: z.string().optional().default(''),
 });
 
-// =========================================================================
-// GET HANDLER: LOOKUP EXISTING STUDENT, WINDOWS, & PENDING APPROVALS
-// =========================================================================
+const parsePaymentMethod = (raw?: string): PaymentMethod => {
+  if (raw === PaymentMethod.BANK_CHALLAN) return PaymentMethod.BANK_CHALLAN;
+  if (raw === PaymentMethod.UPI) return PaymentMethod.UPI;
+  if (raw === PaymentMethod.CASH) return PaymentMethod.CASH;
+  return PaymentMethod.ONLINE_GATEWAY;
+};
 
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
     const action = searchParams.get('action') || 'lookup';
 
-    // 1. Student Lookup for Semester Progression (Sem 2 to 8)
+    // 1. Lookup Student by Registration Code / Roll No / Application No / Phone
     if (action === 'lookup') {
       const code = searchParams.get('code')?.trim();
       if (!code) {
-        return NextResponse.json({ success: false, error: 'Student Registration Code / Roll No is required.' }, { status: 400 });
+        return NextResponse.json(
+          { success: false, error: 'Student Registration Code / Roll No is required.' },
+          { status: 400 }
+        );
       }
 
       const student = await prisma.student.findFirst({
@@ -85,44 +88,53 @@ export async function GET(req: NextRequest) {
         include: {
           course: true,
           session: true,
-          semesterRecords: {
+          payments: {
+            orderBy: { createdAt: 'desc' },
+            take: 5,
+          },
+          enrollments: {
             orderBy: { semester: 'desc' },
-            take: 1,
+            include: { subject: true },
           },
         },
       });
 
       if (!student) {
-        return NextResponse.json({
-          success: false,
-          error: `No registered student record found matching code "${code}". Please verify or apply for fresh Semester 1 admission.`,
-        }, { status: 404 });
+        return NextResponse.json(
+          {
+            success: false,
+            error: `No registered student record found matching code "${code}". Please verify or apply for fresh Semester 1 admission.`,
+          },
+          { status: 404 }
+        );
       }
 
-      const nextSemester = student.currentSemester + 1;
+      const nextSemester = Math.min(student.currentSemester + 1, MAX_SEMESTERS);
+      const maxReached = student.currentSemester >= MAX_SEMESTERS;
+      const pendingApproval = student.status === StudentStatus.APPLIED;
 
-      // Check if registration window is set and active for nextSemester
-      const window = await prisma.registrationWindow.findFirst({
-        where: {
-          courseId: student.courseId,
-          semester: nextSemester,
-          isActive: true,
-        },
-      });
+      const window = maxReached
+        ? null
+        : await prisma.registrationWindow.findFirst({
+            where: {
+              courseId: student.courseId,
+              semester: nextSemester,
+              isActive: true,
+            },
+          });
 
-      const now = new Date();
-      let windowStatus: 'OPEN' | 'NOT_STARTED' | 'CLOSED' = 'OPEN';
-      let windowMessage = '';
+      const windowEval = maxReached
+        ? { status: 'CLOSED' as const, message: 'Student has already completed final Semester 8 registration.' }
+        : evaluateRegistrationWindow(window, nextSemester);
 
-      if (window) {
-        if (now < window.startDate) {
-          windowStatus = 'NOT_STARTED';
-          windowMessage = `Registration for Semester ${nextSemester} will open on ${window.startDate.toLocaleDateString('en-IN')}.`;
-        } else if (now > window.endDate) {
-          windowStatus = 'CLOSED';
-          windowMessage = `Registration window for Semester ${nextSemester} closed on ${window.endDate.toLocaleDateString('en-IN')}. Please contact administration.`;
-        }
-      }
+      const feeBreakdown = await getEffectiveSemesterFee(
+        student.courseId,
+        student.course.code,
+        nextSemester,
+        student.category
+      );
+
+      const overdueInfo = computeOverdueRetention(student.markedForDeletionAt);
 
       return NextResponse.json({
         success: true,
@@ -147,14 +159,27 @@ export async function GET(req: NextRequest) {
           email: student.email,
           address: student.address,
           currentAddress: student.currentAddress,
+          status: student.status,
+          pendingApproval,
+          maxReached,
           currentSemester: student.currentSemester,
           nextSemester,
           courseName: student.course.name,
           courseCode: student.course.code,
           sessionName: student.session.name,
-          windowStatus,
-          windowMessage,
+          windowStatus: windowEval.status,
+          windowMessage: windowEval.message,
           windowDates: window ? { startDate: window.startDate, endDate: window.endDate } : null,
+          feeBreakdown,
+          isOverdue: student.isOverdue,
+          overdueInfo,
+          payments: student.payments.map((p) => ({
+            receiptNo: p.receiptNo,
+            amount: Number(p.amount),
+            targetSemester: p.targetSemester,
+            status: p.status,
+            paidAt: p.paidAt,
+          })),
         },
       });
     }
@@ -195,7 +220,7 @@ export async function GET(req: NextRequest) {
           createdAt: s.createdAt,
           payment: s.payments[0]
             ? {
-                amount: s.payments[0].amount,
+                amount: Number(s.payments[0].amount),
                 receiptNo: s.payments[0].receiptNo,
                 status: s.payments[0].status,
                 method: s.payments[0].paymentMethod,
@@ -210,7 +235,7 @@ export async function GET(req: NextRequest) {
       const windows = await prisma.registrationWindow.findMany({
         orderBy: [{ courseId: 'asc' }, { semester: 'asc' }],
         include: {
-          course: { select: { code: true, name: true } },
+          course: { select: { id: true, code: true, name: true } },
           academicSession: { select: { name: true } },
         },
       });
@@ -218,16 +243,48 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ success: true, data: windows });
     }
 
+    // 4. Overdue & 30-Day Deletion Queue
+    if (action === 'overdue') {
+      const overdueStudents = await prisma.student.findMany({
+        where: { isOverdue: true },
+        orderBy: { markedForDeletionAt: 'asc' },
+        include: {
+          course: { select: { name: true, code: true } },
+          session: { select: { name: true } },
+        },
+      });
+
+      return NextResponse.json({
+        success: true,
+        data: overdueStudents.map((s) => {
+          const retention = computeOverdueRetention(s.markedForDeletionAt, OVERDUE_GRACE_DAYS);
+          return {
+            id: s.id,
+            fullName: s.fullName,
+            applicationNo: s.applicationNo,
+            registrationCode: s.registrationCode,
+            collegeRollNo: s.collegeRollNo,
+            phone: s.phone,
+            currentSemester: s.currentSemester,
+            courseName: s.course.name,
+            courseCode: s.course.code,
+            sessionName: s.session.name,
+            markedForDeletionAt: s.markedForDeletionAt,
+            daysElapsed: retention.daysElapsed,
+            daysRemaining: retention.daysRemaining,
+            purgeEligible: retention.purgeEligible,
+          };
+        }),
+      });
+    }
+
     return NextResponse.json({ success: false, error: 'Unknown action parameter.' }, { status: 400 });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Admissions API GET error:', error);
-    return NextResponse.json({ success: false, error: error.message || 'Database error' }, { status: 500 });
+    const message = error instanceof Error ? error.message : 'Database error';
+    return NextResponse.json({ success: false, error: message }, { status: 500 });
   }
 }
-
-// =========================================================================
-// POST HANDLER: FRESH ADMISSION, PROGRESSION, APPROVAL, & TIME WINDOWS
-// =========================================================================
 
 export async function POST(req: NextRequest) {
   try {
@@ -235,81 +292,36 @@ export async function POST(req: NextRequest) {
     const action = body.action || 'FRESH_ADMISSION';
 
     // -----------------------------------------------------------------------
-    // ACTION 1: FRESH SEMESTER 1 ADMISSION
+    // ACTION 1: FRESH SEMESTER 1 ADMISSION (Super Admin permission required)
     // -----------------------------------------------------------------------
     if (action === 'FRESH_ADMISSION') {
       const validated = freshAdmissionSchema.parse(body.formData);
+      const selectedMethod = parsePaymentMethod(body.paymentMethod);
 
-      // Determine Course & Session
-      let courseCode = 'BA-SS';
-      if (validated.faculty === 'Humanities') courseCode = 'BA-HUM';
-      if (validated.faculty === 'Commerce') courseCode = 'BCOM';
+      const { session, course } = await ensureAcademicSessionAndCourse(validated.faculty);
 
-      // Ensure Course and Session exist in DB
-      let session = await prisma.academicSession.findFirst({
-        where: { isCurrent: true },
+      // Enforce Sem 1 registration window if configured by Super Admin
+      const sem1Window = await prisma.registrationWindow.findFirst({
+        where: { courseId: course.id, semester: 1, isActive: true },
       });
-
-      if (!session) {
-        session = await prisma.academicSession.create({
-          data: {
-            name: '2026-2030',
-            startYear: 2026,
-            endYear: 2030,
-            isCurrent: true,
-          },
-        });
+      const sem1Eval = evaluateRegistrationWindow(sem1Window, 1);
+      if (sem1Eval.status !== 'OPEN') {
+        return NextResponse.json({ success: false, error: sem1Eval.message }, { status: 403 });
       }
 
-      let course = await prisma.course.findUnique({
-        where: { code: courseCode },
-      });
+      const feeBreakdown = await getEffectiveSemesterFee(
+        course.id,
+        course.code,
+        1,
+        validated.category
+      );
 
-      if (!course) {
-        let dept = await prisma.department.findFirst({
-          where: { facultyType: validated.faculty },
-        });
-
-        if (!dept) {
-          dept = await prisma.department.create({
-            data: {
-              name: `Faculty of ${validated.faculty}`,
-              code: courseCode,
-              facultyType: validated.faculty,
-            },
-          });
-        }
-
-        course = await prisma.course.create({
-          data: {
-            name:
-              courseCode === 'BA-SS'
-                ? "Bachelor's of Arts (BA) – Social Science"
-                : courseCode === 'BA-HUM'
-                ? "Bachelor's of Arts (B.A) – Humanities"
-                : "Bachelor's of Commerce (B.COM)",
-            code: courseCode,
-            departmentId: dept.id,
-            durationYear: 4,
-            totalSemesters: 8,
-          },
-        });
-      }
-
-      const totalCount = await prisma.student.count();
       const year = new Date().getFullYear();
-      const serial = String(totalCount + 1).padStart(5, '0');
-
-      // 1. Application Reference Number (e.g. MKR-2026-00042)
-      const applicationNo = `MKR-${year}-${serial}`;
-
-      // 2. Persistent Registration Code generated in Sem 1 (Used for Sem 2..8 Progression)
-      const registrationCode = `MKR-REG-${year}-${serial}`;
-
       const fullName = `${validated.firstName} ${validated.middleName ? validated.middleName + ' ' : ''}${validated.lastName}`.trim();
 
-      // Transaction: Create Student + Sem 1 Ledger Record
-      const newStudent = await prisma.$transaction(async (tx) => {
+      const result = await prisma.$transaction(async (tx) => {
+        const { applicationNo, registrationCode } = await generateSafeAdmissionCodes(tx, year);
+
         const student = await tx.student.create({
           data: {
             applicationNo,
@@ -328,7 +340,7 @@ export async function POST(req: NextRequest) {
             fatherName: validated.fatherName,
             fatherPhone: validated.fatherPhone || null,
             motherName: validated.motherName,
-            address: validated.currentAddress,
+            address: validated.permanentAddress?.trim() || validated.currentAddress,
             currentAddress: validated.currentAddress,
             aadharNo: validated.aadhaarNo || null,
             apaarNo: validated.apaarNo || null,
@@ -336,158 +348,234 @@ export async function POST(req: NextRequest) {
             sessionId: session.id,
             courseId: course.id,
             currentSemester: 1,
-            status: StudentStatus.APPLIED, // Awaits Super Admin final permission
+            status: StudentStatus.APPLIED,
           },
         });
 
-        // Initialize Semester 1 record
         await tx.studentSemesterRecord.create({
           data: {
             studentId: student.id,
             semester: 1,
             academicSessionId: session.id,
-            isFeeCleared: true, // marked cleared upon fee checkout
+            status: SemesterRecordStatus.FEES_PAID,
+            isFeeCleared: true,
           },
         });
 
-        // Generate Fee Payment Transaction
-        const paymentAmount = courseCode === 'BCOM' ? 3200 : 2800; // Real base fee breakdown
-        await tx.feePayment.create({
+        await enrollStudentSubjects(tx, {
+          studentId: student.id,
+          courseId: course.id,
+          courseCode: course.code,
+          departmentId: course.departmentId,
+          semester: 1,
+          subjects: {
+            mjcSubject: validated.mjcSubject,
+            micSubject: validated.micSubject,
+            mdcSubject: validated.mdcSubject,
+            aecSubject: validated.aecSubject,
+            secSubject: validated.secSubject,
+            vacSubject: validated.vacSubject,
+          },
+        });
+
+        const receiptNo = `REC-${year}-S1-${Math.floor(100000 + Math.random() * 900000)}`;
+        const payment = await tx.feePayment.create({
           data: {
-            receiptNo: `REC-${year}-S1-${Math.floor(100000 + Math.random() * 900000)}`,
+            receiptNo,
             studentId: student.id,
             targetSemester: 1,
             paymentType: PaymentType.ADMISSION_CUM_SEM1,
             title: `Semester 1 Admission & CBCS Tuition Fee (${course.name})`,
-            amount: paymentAmount,
-            paymentMethod: PaymentMethod.ONLINE_GATEWAY,
+            amount: feeBreakdown.totalAmount,
+            paymentMethod: selectedMethod,
             status: PaymentStatus.COMPLETED,
             transactionRef: body.transactionRef || `GATEWAY-${Date.now()}`,
             paidAt: new Date(),
           },
         });
 
-        return student;
+        await tx.auditLog.create({
+          data: {
+            action: 'FRESH_ADMISSION',
+            entity: 'Student',
+            entityId: student.id,
+            details: JSON.stringify({
+              applicationNo,
+              registrationCode,
+              receiptNo: payment.receiptNo,
+              amount: feeBreakdown.totalAmount,
+              courseCode: course.code,
+            }),
+          },
+        });
+
+        return { student, payment };
       });
 
       return NextResponse.json({
         success: true,
         message: 'Application & payment received! Retain your Registration Code for Semester 2 progression.',
-        applicationNo: newStudent.applicationNo,
-        registrationCode: newStudent.registrationCode,
-        data: newStudent,
+        applicationNo: result.student.applicationNo,
+        registrationCode: result.student.registrationCode,
+        receiptNo: result.payment.receiptNo,
+        amountPaid: Number(result.payment.amount),
+        data: result.student,
       });
     }
 
     // -----------------------------------------------------------------------
-    // ACTION 2: SEMESTER 2..8 PROGRESSION (AUTO-PROMOTION, ZERO PERMISSION REQUIRED)
+    // ACTION 2: SEMESTER 2..8 PROGRESSION (Auto-promotion, Zero Admin Permission)
     // -----------------------------------------------------------------------
     if (action === 'PROGRESSION_REGISTER') {
-      const { registrationCode, targetSemester, subjects, transactionRef } = body;
+      const { registrationCode, targetSemester, subjects, transactionRef, paymentMethod } = body;
 
-      if (!registrationCode || !targetSemester) {
-        return NextResponse.json({ success: false, error: 'Registration Code and Target Semester are required.' }, { status: 400 });
+      if (!registrationCode) {
+        return NextResponse.json(
+          { success: false, error: 'Registration Code is required.' },
+          { status: 400 }
+        );
       }
 
       const student = await prisma.student.findFirst({
         where: {
-          OR: [
-            { registrationCode },
-            { collegeRollNo: registrationCode },
-          ],
+          OR: [{ registrationCode }, { collegeRollNo: registrationCode }, { applicationNo: registrationCode }],
         },
         include: { course: true, session: true },
       });
 
       if (!student) {
-        return NextResponse.json({ success: false, error: 'Student record not found.' }, { status: 404 });
+        return NextResponse.json(
+          { success: false, error: 'Student record not found for provided code.' },
+          { status: 404 }
+        );
       }
 
-      // Check Time Window set by Super Admin
+      if (student.status === StudentStatus.APPLIED) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: 'Your Semester 1 admission is still pending final approval by the Principal. Please wait for approval before registering for Semester 2.',
+          },
+          { status: 403 }
+        );
+      }
+
+      const effectiveTargetSemester = Number(targetSemester || student.currentSemester + 1);
+      if (effectiveTargetSemester !== student.currentSemester + 1 || effectiveTargetSemester > MAX_SEMESTERS) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: `Invalid target semester (${effectiveTargetSemester}). You are currently in Semester ${student.currentSemester}.`,
+          },
+          { status: 400 }
+        );
+      }
+
       const window = await prisma.registrationWindow.findFirst({
         where: {
           courseId: student.courseId,
-          semester: targetSemester,
+          semester: effectiveTargetSemester,
           isActive: true,
         },
       });
 
-      const now = new Date();
-      if (window) {
-        if (now < window.startDate) {
-          return NextResponse.json({
-            success: false,
-            error: `Registration for Semester ${targetSemester} has not started yet. Opens on ${window.startDate.toLocaleDateString('en-IN')}.`,
-          }, { status: 403 });
-        }
-        if (now > window.endDate) {
-          return NextResponse.json({
-            success: false,
-            error: `Registration deadline for Semester ${targetSemester} ended on ${window.endDate.toLocaleDateString('en-IN')}. Please contact Super Admin.`,
-          }, { status: 403 });
-        }
+      const windowEval = evaluateRegistrationWindow(window, effectiveTargetSemester);
+      if (windowEval.status !== 'OPEN') {
+        return NextResponse.json({ success: false, error: windowEval.message }, { status: 403 });
       }
 
-      const year = new Date().getFullYear();
-      const receiptNo = `REC-${year}-S${targetSemester}-${Math.floor(100000 + Math.random() * 900000)}`;
-      const amount = student.course.code === 'BCOM' ? 3200 : 2800;
+      const feeBreakdown = await getEffectiveSemesterFee(
+        student.courseId,
+        student.course.code,
+        effectiveTargetSemester,
+        student.category
+      );
 
-      // Execute Direct Auto-Promotion (No Super Admin permission needed as specified)
+      const selectedMethod = parsePaymentMethod(paymentMethod);
+      const year = new Date().getFullYear();
+      const receiptNo = `REC-${year}-S${effectiveTargetSemester}-${Math.floor(100000 + Math.random() * 900000)}`;
+
       const result = await prisma.$transaction(async (tx) => {
-        // Record payment
         const payment = await tx.feePayment.create({
           data: {
             receiptNo,
             studentId: student.id,
-            targetSemester,
+            targetSemester: effectiveTargetSemester,
             paymentType: PaymentType.SEMESTER_PROMOTION,
-            title: `Semester ${targetSemester} Re-Registration & Tuition Fee`,
-            amount,
-            paymentMethod: PaymentMethod.ONLINE_GATEWAY,
+            title: `Semester ${effectiveTargetSemester} Re-Registration & Tuition Fee`,
+            amount: feeBreakdown.totalAmount,
+            paymentMethod: selectedMethod,
             status: PaymentStatus.COMPLETED,
             transactionRef: transactionRef || `UPI-PROM-${Date.now()}`,
+            isPromotionTriggered: true,
             paidAt: new Date(),
           },
         });
 
-        // Create new semester record
         await tx.studentSemesterRecord.upsert({
           where: {
             studentId_semester: {
               studentId: student.id,
-              semester: targetSemester,
+              semester: effectiveTargetSemester,
             },
           },
-          update: { isFeeCleared: true },
+          update: {
+            status: SemesterRecordStatus.FEES_PAID,
+            isFeeCleared: true,
+          },
           create: {
             studentId: student.id,
-            semester: targetSemester,
+            semester: effectiveTargetSemester,
             academicSessionId: student.sessionId,
+            status: SemesterRecordStatus.FEES_PAID,
             isFeeCleared: true,
           },
         });
 
-        // Promote student current semester
+        if (subjects) {
+          await enrollStudentSubjects(tx, {
+            studentId: student.id,
+            courseId: student.courseId,
+            courseCode: student.course.code,
+            departmentId: student.course.departmentId,
+            semester: effectiveTargetSemester,
+            subjects,
+          });
+        }
+
         const updatedStudent = await tx.student.update({
           where: { id: student.id },
           data: {
-            currentSemester: targetSemester,
+            currentSemester: effectiveTargetSemester,
             status: StudentStatus.PROMOTED,
             isOverdue: false,
             markedForDeletionAt: null,
           },
         });
 
-        // Create promotion audit log
         await tx.promotionHistory.create({
           data: {
             studentId: student.id,
             fromSemester: student.currentSemester,
-            toSemester: targetSemester,
+            toSemester: effectiveTargetSemester,
             academicSessionId: student.sessionId,
             triggerPaymentId: payment.id,
             promotedBy: 'AUTO_PAYMENT_PROMOTION',
-            remarks: `Direct student re-registration for Semester ${targetSemester} with receipt ${receiptNo}`,
+            remarks: `Direct student re-registration for Semester ${effectiveTargetSemester} with receipt ${receiptNo}`,
+          },
+        });
+
+        await tx.auditLog.create({
+          data: {
+            action: 'PROGRESSION_REGISTER',
+            entity: 'Student',
+            entityId: student.id,
+            details: JSON.stringify({
+              fromSemester: student.currentSemester,
+              toSemester: effectiveTargetSemester,
+              receiptNo,
+              amount: feeBreakdown.totalAmount,
+            }),
           },
         });
 
@@ -496,16 +584,17 @@ export async function POST(req: NextRequest) {
 
       return NextResponse.json({
         success: true,
-        message: `Successfully registered and promoted to Semester ${targetSemester}!`,
+        message: `Successfully registered and promoted to Semester ${effectiveTargetSemester}!`,
         receiptNo: result.receiptNo,
-        newSemester: targetSemester,
+        amountPaid: Number(result.payment.amount),
+        newSemester: effectiveTargetSemester,
         studentName: student.fullName,
         rollNo: student.collegeRollNo || student.registrationCode,
       });
     }
 
     // -----------------------------------------------------------------------
-    // ACTION 3: SUPER ADMIN FINAL PERMISSION (APPROVE SEM 1 ADMISSION & ASSIGN ROLL NO)
+    // ACTION 3: SUPER ADMIN FINAL APPROVAL & COLLEGE ROLL NO ALLOTMENT
     // -----------------------------------------------------------------------
     if (action === 'ADMIN_APPROVE') {
       const { studentId, collegeRollNo } = body;
@@ -523,87 +612,250 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ success: false, error: 'Student record not found.' }, { status: 404 });
       }
 
-      // Generate stream-wise Roll Number if not supplied
-      let assignedRollNo = collegeRollNo;
-      if (!assignedRollNo) {
-        const streamCode = student.course.code.replace('-', '');
-        const currentCount = await prisma.student.count({
-          where: {
-            courseId: student.courseId,
+      if (student.status !== StudentStatus.APPLIED && student.collegeRollNo) {
+        return NextResponse.json({
+          success: true,
+          message: `Candidate is already approved with Roll No: ${student.collegeRollNo}`,
+          data: student,
+        });
+      }
+
+      const year = new Date().getFullYear();
+      const updated = await prisma.$transaction(async (tx) => {
+        const assignedRollNo =
+          collegeRollNo?.trim() ||
+          (await generateSafeCollegeRollNo(tx, student.courseId, student.course.code, year));
+
+        const upd = await tx.student.update({
+          where: { id: studentId },
+          data: {
+            collegeRollNo: assignedRollNo,
             status: StudentStatus.ADMITTED,
           },
         });
-        assignedRollNo = `26/${streamCode}/${String(currentCount + 1).padStart(4, '0')}`;
-      }
 
-      const updated = await prisma.student.update({
-        where: { id: studentId },
-        data: {
-          collegeRollNo: assignedRollNo,
-          status: StudentStatus.ADMITTED,
-        },
+        await tx.auditLog.create({
+          data: {
+            action: 'ADMIN_APPROVE_SEM1',
+            entity: 'Student',
+            entityId: studentId,
+            details: JSON.stringify({
+              applicationNo: student.applicationNo,
+              assignedRollNo,
+            }),
+          },
+        });
+
+        return upd;
       });
 
       return NextResponse.json({
         success: true,
-        message: `Candidate approved! Assigned College Roll No: ${assignedRollNo}`,
+        message: `Candidate approved! Assigned College Roll No: ${updated.collegeRollNo}`,
         data: updated,
       });
     }
 
     // -----------------------------------------------------------------------
-    // ACTION 4: SUPER ADMIN SET REGISTRATION TIME WINDOWS
+    // ACTION 4: SUPER ADMIN CONFIGURE REGISTRATION TIME WINDOW
     // -----------------------------------------------------------------------
     if (action === 'SET_WINDOW') {
-      const { courseId, semester, startDate, endDate, sessionId } = body;
+      const { courseId, courseCode, semester, startDate, endDate } = body;
+      const identifier = courseId || courseCode;
 
-      if (!courseId || !semester || !startDate || !endDate) {
-        return NextResponse.json({ success: false, error: 'Course, Semester, Start Date, and End Date are required.' }, { status: 400 });
+      if (!identifier || !semester || !startDate || !endDate) {
+        return NextResponse.json(
+          { success: false, error: 'Course, Semester, Start Date, and End Date are required.' },
+          { status: 400 }
+        );
       }
 
-      let activeSessionId = sessionId;
-      if (!activeSessionId) {
-        const active = await prisma.academicSession.findFirst({ where: { isCurrent: true } });
-        activeSessionId = active?.id;
+      const normalized = normalizeWindowDates(String(startDate), String(endDate));
+      const { session, course } = await ensureAcademicSessionAndCourse(String(identifier));
+      const semNum = parseInt(String(semester), 10);
+
+      if (Number.isNaN(semNum) || semNum < 1 || semNum > MAX_SEMESTERS) {
+        return NextResponse.json(
+          { success: false, error: 'Semester must be between 1 and 8.' },
+          { status: 400 }
+        );
       }
 
       const window = await prisma.registrationWindow.upsert({
         where: {
           courseId_semester_academicSessionId: {
-            courseId,
-            semester: parseInt(semester, 10),
-            academicSessionId: activeSessionId,
+            courseId: course.id,
+            semester: semNum,
+            academicSessionId: session.id,
           },
         },
         update: {
-          startDate: new Date(startDate),
-          endDate: new Date(endDate),
+          startDate: normalized.startDate,
+          endDate: normalized.endDate,
           isActive: true,
         },
         create: {
-          courseId,
-          semester: parseInt(semester, 10),
-          academicSessionId: activeSessionId,
-          startDate: new Date(startDate),
-          endDate: new Date(endDate),
+          courseId: course.id,
+          semester: semNum,
+          academicSessionId: session.id,
+          startDate: normalized.startDate,
+          endDate: normalized.endDate,
+          graceDays: OVERDUE_GRACE_DAYS,
           isActive: true,
+        },
+      });
+
+      await prisma.auditLog.create({
+        data: {
+          action: 'SET_REGISTRATION_WINDOW',
+          entity: 'RegistrationWindow',
+          entityId: window.id,
+          details: JSON.stringify({
+            courseCode: course.code,
+            semester: semNum,
+            startDate: normalized.startDate,
+            endDate: normalized.endDate,
+          }),
         },
       });
 
       return NextResponse.json({
         success: true,
-        message: `Registration window for Semester ${semester} configured successfully (${window.startDate.toLocaleDateString('en-IN')} to ${window.endDate.toLocaleDateString('en-IN')}).`,
+        message: `Registration window for ${course.code} Semester ${semNum} saved (${normalized.startDate.toLocaleDateString('en-IN')} to ${normalized.endDate.toLocaleDateString('en-IN')}).`,
         data: window,
       });
     }
 
+    // -----------------------------------------------------------------------
+    // ACTION 5: SYNC OVERDUE STUDENTS AFTER DEADLINE EXPIRY
+    // -----------------------------------------------------------------------
+    if (action === 'SYNC_OVERDUE') {
+      const now = new Date();
+      const expiredWindows = await prisma.registrationWindow.findMany({
+        where: {
+          isActive: true,
+          endDate: { lt: now },
+          semester: { gt: 1 },
+        },
+      });
+
+      let flaggedCount = 0;
+
+      for (const win of expiredWindows) {
+        const result = await prisma.student.updateMany({
+          where: {
+            courseId: win.courseId,
+            sessionId: win.academicSessionId,
+            currentSemester: { lt: win.semester },
+            status: { in: [StudentStatus.ADMITTED, StudentStatus.PROMOTED] },
+            isOverdue: false,
+          },
+          data: {
+            isOverdue: true,
+            markedForDeletionAt: win.endDate,
+          },
+        });
+        flaggedCount += result.count;
+      }
+
+      return NextResponse.json({
+        success: true,
+        flaggedCount,
+        message:
+          flaggedCount > 0
+            ? `${flaggedCount} unregistered student(s) moved to 30-day overdue retention queue.`
+            : 'All enrolled students are up to date for closed registration windows.',
+      });
+    }
+
+    // -----------------------------------------------------------------------
+    // ACTION 6: RESTORE OVERDUE STUDENT (SUPER ADMIN EXEMPTION)
+    // -----------------------------------------------------------------------
+    if (action === 'RESTORE_STUDENT') {
+      const { studentId } = body;
+      if (!studentId) {
+        return NextResponse.json({ success: false, error: 'Student ID required.' }, { status: 400 });
+      }
+
+      const restored = await prisma.student.update({
+        where: { id: studentId },
+        data: { isOverdue: false, markedForDeletionAt: null },
+      });
+
+      await prisma.auditLog.create({
+        data: {
+          action: 'RESTORE_OVERDUE_STUDENT',
+          entity: 'Student',
+          entityId: studentId,
+          details: JSON.stringify({ applicationNo: restored.applicationNo, fullName: restored.fullName }),
+        },
+      });
+
+      return NextResponse.json({
+        success: true,
+        message: `${restored.fullName} restored from deletion queue.`,
+      });
+    }
+
+    // -----------------------------------------------------------------------
+    // ACTION 7: PURGE EXPIRED STUDENTS (>30 DAYS OVERDUE) WITH FORENSIC SNAPSHOT
+    // -----------------------------------------------------------------------
+    if (action === 'PURGE_EXPIRED') {
+      const cutoffDate = new Date(Date.now() - OVERDUE_GRACE_DAYS * 24 * 60 * 60 * 1000);
+      const expiredStudents = await prisma.student.findMany({
+        where: {
+          isOverdue: true,
+          markedForDeletionAt: { lte: cutoffDate },
+        },
+        include: { payments: true },
+      });
+
+      if (expiredStudents.length === 0) {
+        return NextResponse.json({
+          success: true,
+          purgedCount: 0,
+          message: 'No student records have crossed the 30-day overdue retention deadline yet.',
+        });
+      }
+
+      await prisma.$transaction(async (tx) => {
+        for (const st of expiredStudents) {
+          await tx.auditLog.create({
+            data: {
+              action: 'OVERDUE_30DAY_PURGE',
+              entity: 'Student',
+              entityId: st.id,
+              oldValues: JSON.stringify({
+                applicationNo: st.applicationNo,
+                registrationCode: st.registrationCode,
+                collegeRollNo: st.collegeRollNo,
+                fullName: st.fullName,
+                currentSemester: st.currentSemester,
+                markedForDeletionAt: st.markedForDeletionAt,
+                paymentCount: st.payments.length,
+              }),
+              details: 'Purged automatically after failing semester registration within 30-day retention.',
+            },
+          });
+
+          // Remove restricted payment rows after archiving summary in auditLog
+          await tx.feePayment.deleteMany({ where: { studentId: st.id } });
+          await tx.student.delete({ where: { id: st.id } });
+        }
+      });
+
+      return NextResponse.json({
+        success: true,
+        purgedCount: expiredStudents.length,
+        message: `Purged ${expiredStudents.length} expired student record(s) with audit trail preserved.`,
+      });
+    }
+
     return NextResponse.json({ success: false, error: 'Invalid action.' }, { status: 400 });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Admissions API POST error:', error);
-    return NextResponse.json(
-      { success: false, error: error?.errors?.[0]?.message || error.message || 'Operation failed.' },
-      { status: 400 }
-    );
+    const zodErr = (error as { errors?: Array<{ message: string }> })?.errors?.[0]?.message;
+    const message = zodErr || (error instanceof Error ? error.message : 'Server error processing request.');
+    return NextResponse.json({ success: false, error: message }, { status: 400 });
   }
 }
-

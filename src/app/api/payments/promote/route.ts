@@ -6,7 +6,7 @@ import { z } from 'zod';
 const promotionPaymentSchema = z.object({
   studentId: z.string().min(1, 'Student ID is required'),
   targetSemester: z.number().int().min(1).max(8),
-  amount: z.number().positive('Amount must be positive'),
+  amount: z.number().positive('Amount must be positive').optional(),
   paymentMethod: z.nativeEnum(PaymentMethod).default(PaymentMethod.ONLINE_GATEWAY),
   transactionRef: z.string().min(3, 'Transaction reference/UTR is required'),
   gatewayOrderId: z.string().optional(),
@@ -31,4 +31,3 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ success: false, error: message }, { status: 400 });
   }
 }
-

@@ -1,10 +1,18 @@
 import { prisma } from '@/lib/prisma';
-import { PaymentMethod, PaymentStatus, PaymentType, StudentStatus, SemesterRecordStatus } from '@prisma/client';
+import {
+  PaymentMethod,
+  PaymentStatus,
+  PaymentType,
+  StudentStatus,
+  SemesterRecordStatus,
+} from '@prisma/client';
+import { evaluateRegistrationWindow } from '@/lib/college-config';
+import { getEffectiveSemesterFee } from '@/lib/services/academic-structure';
 
 export interface PromotionPaymentInput {
   studentId: string;
   targetSemester: number;
-  amount: number;
+  amount?: number;
   paymentMethod: PaymentMethod;
   transactionRef: string;
   gatewayOrderId?: string;
@@ -18,6 +26,7 @@ export interface PromotionResult {
   message: string;
   receiptNo?: string;
   paymentId?: string;
+  amountPaid?: number;
   previousSemester?: number;
   newSemester?: number;
   isIdempotentReplay?: boolean;
@@ -25,8 +34,8 @@ export interface PromotionResult {
 
 /**
  * Enterprise Automated Promotion & Payment Engine
- * Executes payment verification, receipt generation, semester increment,
- * and academic ledger updates inside a single ACID MySQL transaction.
+ * Executes payment verification, receipt generation, window enforcement,
+ * semester increment, and academic ledger updates inside a single ACID MySQL transaction.
  */
 export async function processSemesterPaymentAndPromote(
   input: PromotionPaymentInput
@@ -34,7 +43,6 @@ export async function processSemesterPaymentAndPromote(
   const {
     studentId,
     targetSemester,
-    amount,
     paymentMethod,
     transactionRef,
     gatewayOrderId,
@@ -50,21 +58,20 @@ export async function processSemesterPaymentAndPromote(
       include: { student: true },
     });
 
-    if (existingPayment) {
-      if (existingPayment.status === PaymentStatus.COMPLETED) {
-        return {
-          success: true,
-          message: 'Payment already processed and verified (Idempotent replay).',
-          receiptNo: existingPayment.receiptNo,
-          paymentId: existingPayment.id,
-          previousSemester: existingPayment.targetSemester - 1,
-          newSemester: existingPayment.targetSemester,
-          isIdempotentReplay: true,
-        };
-      }
+    if (existingPayment && existingPayment.status === PaymentStatus.COMPLETED) {
+      return {
+        success: true,
+        message: 'Payment already processed and verified (Idempotent replay).',
+        receiptNo: existingPayment.receiptNo,
+        paymentId: existingPayment.id,
+        amountPaid: Number(existingPayment.amount),
+        previousSemester: existingPayment.targetSemester - 1,
+        newSemester: existingPayment.targetSemester,
+        isIdempotentReplay: true,
+      };
     }
 
-    // 2. Fetch Student Details with Lock
+    // 2. Fetch Student Details
     const student = await tx.student.findUnique({
       where: { id: studentId },
       include: {
@@ -77,32 +84,65 @@ export async function processSemesterPaymentAndPromote(
       throw new Error(`Student with ID ${studentId} not found.`);
     }
 
+    if (student.status === StudentStatus.APPLIED) {
+      throw new Error(
+        'Semester 1 initial admission is awaiting Super Admin approval. Auto-promotion activates from Semester 2 onwards.'
+      );
+    }
+
     // 3. Validation: Target semester check
-    if (targetSemester <= 0 || targetSemester > student.course.totalSemesters) {
+    if (targetSemester <= 1 || targetSemester > student.course.totalSemesters) {
       throw new Error(
         `Invalid target semester: ${targetSemester}. Course maximum is ${student.course.totalSemesters}.`
       );
     }
 
+    if (targetSemester !== student.currentSemester + 1) {
+      throw new Error(
+        `Sequential promotion enforced. Student is in Semester ${student.currentSemester} and can only promote to Semester ${student.currentSemester + 1}.`
+      );
+    }
+
+    // 4. Enforce Super Admin Registration Time Window
+    const window = await tx.registrationWindow.findFirst({
+      where: {
+        courseId: student.courseId,
+        semester: targetSemester,
+        isActive: true,
+      },
+    });
+
+    const windowEval = evaluateRegistrationWindow(window, targetSemester);
+    if (windowEval.status !== 'OPEN') {
+      throw new Error(windowEval.message);
+    }
+
+    // 5. Compute Authoritative Course & Semester Fee
+    const feeBreakdown = await getEffectiveSemesterFee(
+      student.courseId,
+      student.course.code,
+      targetSemester,
+      student.category,
+      tx
+    );
+    const effectiveAmount = feeBreakdown.totalAmount;
+
     const previousSemester = student.currentSemester;
 
-    // 4. Generate Unique Sequential Receipt Number
+    // 6. Generate Unique Sequential Receipt Number
     const year = new Date().getFullYear();
     const randomSuffix = Math.floor(100000 + Math.random() * 900000);
-    const receiptNo = `MKR-${year}-S${targetSemester}-${randomSuffix}`;
+    const receiptNo = `REC-${year}-S${targetSemester}-${randomSuffix}`;
 
-    // 5. Create FeePayment Record
+    // 7. Create FeePayment Record
     const feePayment = await tx.feePayment.create({
       data: {
         receiptNo,
         studentId: student.id,
         targetSemester,
-        paymentType:
-          targetSemester === 1
-            ? PaymentType.ADMISSION_CUM_SEM1
-            : PaymentType.SEMESTER_PROMOTION,
+        paymentType: PaymentType.SEMESTER_PROMOTION,
         title: `Semester ${targetSemester} Fee Clearance (${student.session.name})`,
-        amount,
+        amount: effectiveAmount,
         paymentMethod,
         status: PaymentStatus.COMPLETED,
         transactionRef,
@@ -114,7 +154,7 @@ export async function processSemesterPaymentAndPromote(
       },
     });
 
-    // 6. Update/Create Student Semester Ledger Record
+    // 8. Update/Create Student Semester Ledger Record
     await tx.studentSemesterRecord.upsert({
       where: {
         studentId_semester: {
@@ -136,16 +176,18 @@ export async function processSemesterPaymentAndPromote(
       },
     });
 
-    // 7. Update Student Current Semester and Status
+    // 9. Update Student Current Semester & Clear Overdue Flags
     await tx.student.update({
       where: { id: student.id },
       data: {
         currentSemester: targetSemester,
-        status: StudentStatus.ADMITTED,
+        status: StudentStatus.PROMOTED,
+        isOverdue: false,
+        markedForDeletionAt: null,
       },
     });
 
-    // 8. Log Immutable Promotion History
+    // 10. Log Immutable Promotion History
     await tx.promotionHistory.create({
       data: {
         studentId: student.id,
@@ -154,11 +196,11 @@ export async function processSemesterPaymentAndPromote(
         academicSessionId: student.sessionId,
         triggerPaymentId: feePayment.id,
         promotedBy,
-        remarks: `Auto-promoted upon payment confirmation of ₹${amount} via ${paymentMethod}. Receipt: ${receiptNo}`,
+        remarks: `Auto-promoted upon payment confirmation of ₹${effectiveAmount} via ${paymentMethod}. Receipt: ${receiptNo}`,
       },
     });
 
-    // 9. Audit Log
+    // 11. Audit Log
     await tx.auditLog.create({
       data: {
         action: 'AUTO_SEMESTER_PROMOTION',
@@ -168,7 +210,7 @@ export async function processSemesterPaymentAndPromote(
           previousSemester,
           newSemester: targetSemester,
           receiptNo,
-          amount,
+          amount: effectiveAmount,
           transactionRef,
           promotedBy,
         }),
@@ -180,10 +222,10 @@ export async function processSemesterPaymentAndPromote(
       message: `Successfully promoted to Semester ${targetSemester}.`,
       receiptNo,
       paymentId: feePayment.id,
+      amountPaid: effectiveAmount,
       previousSemester,
       newSemester: targetSemester,
       isIdempotentReplay: false,
     };
   });
 }
-
